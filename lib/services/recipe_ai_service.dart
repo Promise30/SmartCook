@@ -4,6 +4,16 @@ import '../models/recipe.dart';
 import '../config/api_config.dart';
 
 class RecipeAIService {
+  // Singleton pattern
+  static final RecipeAIService _instance = RecipeAIService._internal();
+  factory RecipeAIService() {
+    print('🏭 RecipeAIService factory called - returning singleton instance');
+    return _instance;
+  }
+  RecipeAIService._internal() {
+    print('🆕 RecipeAIService singleton instance created');
+  }
+  
   final http.Client _client = http.Client();
   
   // Cache for storing generated recipes
@@ -74,18 +84,27 @@ User Request: ${_getUserPrompt(ingredients)}''';
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         print('✅ Successfully received recipes from Gemini');
+        print('📄 Full response body:');
+        print(response.body);
         print('📄 Response structure: ${data.keys}');
         
         // Check if response has the expected structure
         if (data['candidates'] == null || (data['candidates'] as List).isEmpty) {
           print('❌ No candidates in response');
-          print('   Full response: ${response.body}');
           throw Exception('Gemini API returned empty candidates');
         }
         
         // Extract text from Gemini response
         final candidate = data['candidates'][0];
         print('📄 Candidate structure: ${candidate.keys}');
+        
+        // Check for safety blocks or missing parts
+        if (candidate['content'] == null || candidate['content']['parts'] == null) {
+          print('❌ Content or parts is null!');
+          print('   Finish reason: ${candidate['finishReason']}');
+          print('   Full candidate: $candidate');
+          throw Exception('Gemini response blocked or has no content');
+        }
         
         final text = candidate['content']['parts'][0]['text'] as String;
         print('📝 Extracted text length: ${text.length} characters');
@@ -169,11 +188,12 @@ For each recipe, provide:
 1. A title (use Yoruba names where appropriate, with English translation)
 2. A brief description highlighting Nigerian cooking style
 3. List of ingredients (use Nigerian ingredient names and measurements)
-4. Preparation time in minutes
-5. Cooking time in minutes
-6. Difficulty level (Easy, Medium, or Hard)
-7. Rating (between 4.0 and 5.0)
-8. Category (Breakfast, Lunch, Dinner, Snack, or Soup)
+4. DETAILED step-by-step cooking instructions (at least 6-10 steps)
+5. Preparation time in minutes
+6. Cooking time in minutes
+7. Difficulty level (Easy, Medium, or Hard)
+8. Rating (between 4.0 and 5.0)
+9. Nutritional information per serving (approximate values)
 
 Format your response as a JSON array with this structure:
 [
@@ -181,11 +201,24 @@ Format your response as a JSON array with this structure:
     "title": "Recipe Name (Yoruba Name)",
     "description": "Brief description with Nigerian context",
     "ingredients": ["ingredient 1 with Nigerian measurements", "ingredient 2", ...],
+    "instructions": [
+      "Step 1: Detailed instruction...",
+      "Step 2: Detailed instruction...",
+      "Step 3: Detailed instruction...",
+      ...
+    ],
     "prepTimeMinutes": 15,
     "cookTimeMinutes": 20,
     "difficulty": "Easy",
     "rating": 4.5,
-    "category": "Dinner"
+    "nutritionalInfo": {
+      "servings": 4,
+      "calories": 450,
+      "protein": 25,
+      "carbs": 60,
+      "fat": 15,
+      "fiber": 8
+    }
   }
 ]
 
@@ -220,17 +253,41 @@ Use Nigerian measurements and ingredient names where applicable.''';
         return recipesJson.asMap().entries.map((entry) {
           final index = entry.key;
           final json = entry.value as Map<String, dynamic>;
+          final recipeId = (index + 1).toString();
           
-          return RecipeSuggestion(
-            id: (index + 1).toString(),
+          // Cache the full Recipe object for later detail viewing
+          final nutritionalInfo = json['nutritionalInfo'] != null 
+              ? NutritionalInfo.fromJson(json['nutritionalInfo'] as Map<String, dynamic>)
+              : null;
+          
+          final cachedRecipe = Recipe(
+            id: recipeId,
             title: json['title'] as String,
             description: json['description'] as String,
             ingredients: (json['ingredients'] as List).map((i) => i.toString()).toList(),
+            instructions: (json['instructions'] as List).map((i) => i.toString()).toList(),
+            prepTimeMinutes: json['prepTimeMinutes'] as int,
+            cookTimeMinutes: json['cookTimeMinutes'] as int,
+            servings: nutritionalInfo?.servings ?? 4,
+            difficulty: json['difficulty'] as String,
+            rating: (json['rating'] as num).toDouble(),
+            nutritionalInfo: nutritionalInfo,
+          );
+          
+          _recipeCache[recipeId] = cachedRecipe;
+          print('✅ Cached recipe ID: $recipeId, Title: ${cachedRecipe.title}');
+          
+          return RecipeSuggestion(
+            id: recipeId,
+            title: json['title'] as String,
+            description: json['description'] as String,
+            ingredients: (json['ingredients'] as List).map((i) => i.toString()).toList(),
+            instructions: (json['instructions'] as List).map((i) => i.toString()).toList(),
             prepTimeMinutes: json['prepTimeMinutes'] as int,
             cookTimeMinutes: json['cookTimeMinutes'] as int,
             difficulty: json['difficulty'] as String,
             rating: (json['rating'] as num).toDouble(),
-            category: json['category'] as String,
+            nutritionalInfo: nutritionalInfo,
           );
         }).toList();
       } else {
@@ -266,11 +323,14 @@ Use Nigerian measurements and ingredient names where applicable.''';
             title: json['title'] as String,
             description: json['description'] as String,
             ingredients: (json['ingredients'] as List).map((i) => i.toString()).toList(),
+            instructions: (json['instructions'] as List).map((i) => i.toString()).toList(),
             prepTimeMinutes: json['prepTimeMinutes'] as int,
             cookTimeMinutes: json['cookTimeMinutes'] as int,
             difficulty: json['difficulty'] as String,
             rating: (json['rating'] as num).toDouble(),
-            category: json['category'] as String,
+            nutritionalInfo: json['nutritionalInfo'] != null 
+                ? NutritionalInfo.fromJson(json['nutritionalInfo'] as Map<String, dynamic>)
+                : null,
           );
         }).toList();
       } else {
@@ -344,10 +404,12 @@ Use Nigerian measurements (mudu, derica, paint rubber, etc.) where appropriate.'
             instructions: (json['instructions'] as List).map((i) => i.toString()).toList(),
             prepTimeMinutes: json['prepTimeMinutes'] as int,
             cookTimeMinutes: json['cookTimeMinutes'] as int,
-            servings: json['servings'] as int,
+            servings: json['nutritionalInfo']?['servings'] as int? ?? 4,
             difficulty: json['difficulty'] as String,
             rating: (json['rating'] as num).toDouble(),
-            category: json['category'] as String,
+            nutritionalInfo: json['nutritionalInfo'] != null 
+                ? NutritionalInfo.fromJson(json['nutritionalInfo'] as Map<String, dynamic>)
+                : null,
           );
         } else {
           throw Exception('Invalid JSON format in AI response');
@@ -364,171 +426,116 @@ Use Nigerian measurements (mudu, derica, paint rubber, etc.) where appropriate.'
   List<RecipeSuggestion> _generateMockRecipes(List<String> ingredients) {
     print('📋 Generating mock Nigerian recipes for: $ingredients');
     
-    // Normalize ingredient names (lowercase for matching)
-    final normalizedIngredients = ingredients.map((i) => i.toLowerCase()).toList();
-    final ingredientStr = normalizedIngredients.join(', ');
+    // Since this is mock data, return simple generic recipes
+    // Real recipes come from Gemini API
+    final ingredientStr = ingredients.join(', ');
     
-    // Generate mock Nigerian recipes based on ACTUAL detected ingredients
-    List<RecipeSuggestion> recipes = [];
-    
-    // Pattern 1: Tomato-based dishes
-    if (normalizedIngredients.any((i) => ['tomato', 'ata_rodo', 'onion', 'pepper'].contains(i))) {
-      recipes.add(RecipeSuggestion(
+    return [
+      RecipeSuggestion(
         id: '1',
-        title: 'Obe Ata (Red Stew) with ${normalizedIngredients.take(3).join(", ")}',
-        description: 'Classic Yoruba tomato-based stew using your detected ingredients: $ingredientStr',
-        ingredients: [...ingredients, 'palm oil', 'crayfish', 'locust beans (iru)', 'seasoning'],
-        prepTimeMinutes: 20,
-        cookTimeMinutes: 40,
-        difficulty: 'Medium',
-        rating: 4.7,
-        category: 'Dinner',
-      ));
-    }
-    
-    // Pattern 2: Rice dishes
-    if (normalizedIngredients.contains('rice')) {
-      final otherIngredients = ingredients.where((i) => i.toLowerCase() != 'rice').toList();
-      recipes.add(RecipeSuggestion(
-        id: '3',
-        title: 'Jollof Rice with ${otherIngredients.isNotEmpty ? otherIngredients.join(" and ") : "vegetables"}',
+        title: 'Jollof Rice with $ingredientStr',
         description: 'Nigerian one-pot rice dish featuring: $ingredientStr',
-        ingredients: [...ingredients, 'groundnut oil', 'curry', 'thyme', 'bay leaves', 'stock'],
+        ingredients: [...ingredients, 'rice', 'tomatoes', 'groundnut oil', 'curry', 'thyme'],
+        instructions: [
+          'Blend tomatoes and peppers',
+          'Par-boil rice and set aside',
+          'Heat oil and fry onions',
+          'Add blended mixture and cook for 20 minutes',
+          'Add rice and mix well',
+          'Cook until rice is tender',
+          'Serve hot'
+        ],
         prepTimeMinutes: 20,
         cookTimeMinutes: 45,
         difficulty: 'Medium',
         rating: 4.8,
-        category: 'Dinner',
-      ));
-    }
-    
-    // Pattern 3: Beans dishes
-    if (normalizedIngredients.contains('beans')) {
-      recipes.add(RecipeSuggestion(
-        id: '5',
-        title: 'Ewa Agoyin (Mashed Beans) with ${ingredients.where((i) => i.toLowerCase() != 'beans').join(", ")}',
-        description: 'Popular Lagos street food using: $ingredientStr',
-        ingredients: [...ingredients, 'palm oil', 'dried pepper', 'crayfish', 'salt'],
-        prepTimeMinutes: 15,
-        cookTimeMinutes: 90,
-        difficulty: 'Easy',
-        rating: 4.5,
-        category: 'Lunch',
-      ));
-    }
-    
-    // Pattern 4: Vegetable soups (ewedu, waterleaf, okra)
-    if (normalizedIngredients.any((i) => ['ewedu', 'waterleaf', 'okra'].contains(i))) {
-      final veggie = normalizedIngredients.firstWhere((i) => ['ewedu', 'waterleaf', 'okra'].contains(i), orElse: () => 'vegetable');
-      recipes.add(RecipeSuggestion(
+      ),
+      RecipeSuggestion(
         id: '2',
-        title: '${veggie.toUpperCase()} Soup with ${ingredients.where((i) => i.toLowerCase() != veggie).take(2).join(" and ")}',
-        description: 'Traditional Yoruba soup using: $ingredientStr',
-        ingredients: [...ingredients, 'palm oil', 'crayfish', 'locust beans (iru)', 'ponmo', 'stockfish'],
-        prepTimeMinutes: 25,
-        cookTimeMinutes: 35,
-        difficulty: 'Medium',
-        rating: 4.6,
-        category: 'Soup',
-      ));
-    }
-    
-    // Pattern 5: Yam/Plantain dishes
-    if (normalizedIngredients.any((i) => ['yam', 'plantain', 'potato'].contains(i))) {
-      final starch = normalizedIngredients.firstWhere((i) => ['yam', 'plantain', 'potato'].contains(i), orElse: () => 'yam');
-      recipes.add(RecipeSuggestion(
-        id: '6',
-        title: '${starch.toUpperCase()} Porridge with ${ingredients.where((i) => i.toLowerCase() != starch).take(2).join(", ")}',
-        description: 'Comforting one-pot dish featuring: $ingredientStr',
-        ingredients: [...ingredients, 'palm oil', 'crayfish', 'stockfish', 'seasoning'],
-        prepTimeMinutes: 20,
-        cookTimeMinutes: 30,
-        difficulty: 'Easy',
-        rating: 4.4,
-        category: 'Dinner',
-      ));
-    }
-    
-    // Pattern 6: Protein dishes (chicken, catfish, ponmo)
-    if (normalizedIngredients.any((i) => ['catfish', 'chicken', 'ponmo'].contains(i))) {
-      final protein = normalizedIngredients.firstWhere((i) => ['catfish', 'chicken', 'ponmo'].contains(i), orElse: () => 'protein');
-      recipes.add(RecipeSuggestion(
-        id: '10',
-        title: '${protein.toUpperCase()} Pepper Soup with ${ingredients.where((i) => i.toLowerCase() != protein).take(2).join(", ")}',
+        title: 'Pepper Soup with $ingredientStr',
         description: 'Spicy Nigerian soup using: $ingredientStr',
-        ingredients: [...ingredients, 'uziza seeds', 'ehuru', 'scent leaves', 'seasoning cubes'],
+        ingredients: [...ingredients, 'pepper soup spice', 'uziza', 'scent leaves'],
+        instructions: [
+          'Boil protein with seasonings',
+          'Add pepper and spices',
+          'Cook for 20 minutes',
+          'Add scent leaves',
+          'Simmer for 5 minutes',
+          'Serve hot'
+        ],
         prepTimeMinutes: 15,
         cookTimeMinutes: 25,
         difficulty: 'Easy',
         rating: 4.7,
-        category: 'Soup',
-      ));
-    }
-    
-    // Generic recipe with ALL detected ingredients
-    if (recipes.isEmpty || recipes.length < 3) {
-      recipes.add(RecipeSuggestion(
-        id: '11',
+      ),
+      RecipeSuggestion(
+        id: '3',
+        title: 'Obe Ata (Red Stew) with $ingredientStr',
+        description: 'Classic Yoruba tomato-based stew',
+        ingredients: [...ingredients, 'palm oil', 'crayfish', 'locust beans'],
+        instructions: [
+          'Blend tomatoes, peppers, and onions',
+          'Heat palm oil until hot',
+          'Add locust beans and fry',
+          'Pour in blended mixture',
+          'Cook for 30 minutes',
+          'Add crayfish and seasonings',
+          'Simmer until oil rises',
+          'Serve with rice or yam'
+        ],
+        prepTimeMinutes: 20,
+        cookTimeMinutes: 40,
+        difficulty: 'Medium',
+        rating: 4.6,
+      ),
+      RecipeSuggestion(
+        id: '4',
         title: 'Nigerian Mixed Dish with $ingredientStr',
-        description: 'Creative recipe combining all your detected ingredients',
-        ingredients: [...ingredients, 'palm oil', 'seasoning', 'salt', 'water'],
+        description: 'Creative recipe combining your ingredients',
+        ingredients: [...ingredients, 'palm oil', 'seasoning', 'salt'],
+        instructions: [
+          'Prepare all ingredients',
+          'Heat oil in pan',
+          'Add onions and fry',
+          'Add other ingredients',
+          'Season to taste',
+          'Cook until done',
+          'Serve hot'
+        ],
         prepTimeMinutes: 15,
         cookTimeMinutes: 30,
         difficulty: 'Easy',
         rating: 4.3,
-        category: 'Dinner',
-      ));
-    }
-    
-    // Add popular Nigerian dishes if we need more suggestions
-    if (recipes.length < 4) {
-      recipes.addAll([
-        RecipeSuggestion(
-          id: '7',
-          title: 'Moin Moin with your ingredients',
-          description: 'Steamed bean pudding enhanced with: $ingredientStr',
-          ingredients: ['black-eyed beans', ...ingredients.take(3), 'palm oil', 'eggs', 'crayfish'],
-          prepTimeMinutes: 30,
-          cookTimeMinutes: 45,
-          difficulty: 'Medium',
-          rating: 4.6,
-          category: 'Snack',
-        ),
-        RecipeSuggestion(
-          id: '8',
-          title: 'Gizdodo (Gizzard and Plantain)',
-          description: 'Popular Lagos dish that goes well with: $ingredientStr',
-          ingredients: ['plantain', 'gizzard', ...ingredients.take(2), 'bell pepper', 'groundnut oil'],
-          prepTimeMinutes: 20,
-          cookTimeMinutes: 25,
-          difficulty: 'Medium',
-          rating: 4.5,
-          category: 'Appetizer',
-        ),
-      ]);
-    }
-    
-    print('✅ Generated ${recipes.length} mock recipes using detected ingredients');
-    return recipes.take(6).toList();
+      ),
+    ];
   }
 
   Future<Recipe> getRecipeDetails(String recipeId) async {
+    print('🔍 Getting recipe details for ID: $recipeId');
+    print('   Cache keys: ${_recipeCache.keys.toList()}');
+    
     // Check cache first
     if (_recipeCache.containsKey(recipeId)) {
+      print('✅ Found recipe in cache!');
       return _recipeCache[recipeId]!;
     }
+    
+    print('⚠️ Recipe not in cache, trying to fetch from AI...');
 
-    // If using AI and recipe not in cache, fetch from AI
-    if (ApiConfig.useOpenAI && ApiConfig.openAiApiKey != 'YOUR_OPENAI_API_KEY_HERE') {
+    // If using Gemini or OpenAI and recipe not in cache, fetch from AI
+    if ((ApiConfig.useGemini && ApiConfig.geminiApiKey != 'YOUR_GEMINI_API_KEY_HERE') ||
+        (ApiConfig.useOpenAI && ApiConfig.openAiApiKey != 'YOUR_OPENAI_API_KEY_HERE')) {
       try {
         final recipe = await _getRecipeDetailsFromAI(recipeId);
         _recipeCache[recipeId] = recipe;
         return recipe;
       } catch (e) {
+        print('❌ Error fetching recipe details from AI: $e');
         // Fall through to mock data
       }
     }
 
+    print('📋 Using mock recipe for ID: $recipeId');
     // Fallback to mock detailed Nigerian recipes
     // Return different recipes based on ID
     switch (recipeId) {
@@ -568,7 +575,6 @@ Use Nigerian measurements (mudu, derica, paint rubber, etc.) where appropriate.'
           servings: 6,
           difficulty: 'Medium',
           rating: 4.7,
-          category: 'Dinner',
         );
       case '2':
         return Recipe(
@@ -610,7 +616,6 @@ Use Nigerian measurements (mudu, derica, paint rubber, etc.) where appropriate.'
           servings: 6,
           difficulty: 'Medium',
           rating: 4.6,
-          category: 'Soup',
         );
       case '3':
         return Recipe(
@@ -656,7 +661,6 @@ Use Nigerian measurements (mudu, derica, paint rubber, etc.) where appropriate.'
           servings: 8,
           difficulty: 'Medium',
           rating: 4.8,
-          category: 'Dinner',
         );
       case '4':
         return Recipe(
@@ -699,7 +703,6 @@ Use Nigerian measurements (mudu, derica, paint rubber, etc.) where appropriate.'
           servings: 6,
           difficulty: 'Hard',
           rating: 4.7,
-          category: 'Lunch',
         );
       default:
         // Default fallback recipe
@@ -743,7 +746,6 @@ Use Nigerian measurements (mudu, derica, paint rubber, etc.) where appropriate.'
           servings: 8,
           difficulty: 'Medium',
           rating: 4.6,
-          category: 'Snack',
         );
     }
   }

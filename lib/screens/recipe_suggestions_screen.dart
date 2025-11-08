@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/ingredient.dart';
 import '../models/recipe.dart';
-import '../services/recipe_ai_service.dart';
 import 'recipe_details_screen.dart';
 import 'history_screen.dart';
 import 'main_screen.dart';
@@ -22,8 +21,6 @@ class RecipeSuggestionsScreen extends StatefulWidget {
 }
 
 class _RecipeSuggestionsScreenState extends State<RecipeSuggestionsScreen> {
-  final RecipeAIService _recipeService = RecipeAIService();
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -215,21 +212,21 @@ class _RecipeSuggestionsScreenState extends State<RecipeSuggestionsScreen> {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        _getCategoryColor(recipe.category).withValues(alpha: 0.8),
-                        _getCategoryColor(recipe.category).withValues(alpha: 0.6),
+                        _getDifficultyColor(recipe.difficulty).withValues(alpha: 0.8),
+                        _getDifficultyColor(recipe.difficulty).withValues(alpha: 0.6),
                       ],
                     ),
                     borderRadius: BorderRadius.circular(40),
                     boxShadow: [
                       BoxShadow(
-                        color: _getCategoryColor(recipe.category).withValues(alpha: 0.3),
+                        color: _getDifficultyColor(recipe.difficulty).withValues(alpha: 0.3),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),
                     ],
                   ),
                   child: Icon(
-                    _getRecipeIcon(recipe.category),
+                    _getRecipeIcon(recipe.difficulty),
                     size: 40,
                     color: Colors.white,
                   ),
@@ -315,35 +312,27 @@ class _RecipeSuggestionsScreenState extends State<RecipeSuggestionsScreen> {
     );
   }
 
-  IconData _getRecipeIcon(String category) {
-    switch (category.toLowerCase()) {
-      case 'breakfast':
-        return Icons.breakfast_dining;
-      case 'lunch':
-        return Icons.lunch_dining;
-      case 'dinner':
-        return Icons.dinner_dining;
-      case 'snack':
-        return Icons.cookie;
-      case 'dessert':
-        return Icons.cake;
+  IconData _getRecipeIcon(String difficulty) {
+    switch (difficulty.toLowerCase()) {
+      case 'easy':
+        return Icons.sentiment_satisfied_alt;
+      case 'medium':
+        return Icons.restaurant_menu;
+      case 'hard':
+        return Icons.emoji_events;
       default:
         return Icons.restaurant_menu;
     }
   }
 
-  Color _getCategoryColor(String category) {
-    switch (category.toLowerCase()) {
-      case 'breakfast':
-        return const Color(0xFFFF9800); // Orange
-      case 'lunch':
+  Color _getDifficultyColor(String difficulty) {
+    switch (difficulty.toLowerCase()) {
+      case 'easy':
         return const Color(0xFF4CAF50); // Green
-      case 'dinner':
-        return const Color(0xFF2196F3); // Blue
-      case 'snack':
-        return const Color(0xFF9C27B0); // Purple
-      case 'dessert':
-        return const Color(0xFFE91E63); // Pink
+      case 'medium':
+        return const Color(0xFFFF9800); // Orange
+      case 'hard':
+        return const Color(0xFFF44336); // Red
       default:
         return const Color(0xFF607D8B); // Blue Grey
     }
@@ -402,41 +391,27 @@ class _RecipeSuggestionsScreenState extends State<RecipeSuggestionsScreen> {
   }
 
   Future<void> _viewRecipeDetails(RecipeSuggestion recipe) async {
-    // Show loading dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
+    // Convert RecipeSuggestion to Recipe directly (no need to fetch from API)
+    final detailedRecipe = Recipe(
+      id: recipe.id,
+      title: recipe.title,
+      description: recipe.description,
+      ingredients: recipe.ingredients,
+      instructions: recipe.instructions,
+      prepTimeMinutes: recipe.prepTimeMinutes,
+      cookTimeMinutes: recipe.cookTimeMinutes,
+      servings: recipe.nutritionalInfo?.servings ?? 4,
+      difficulty: recipe.difficulty,
+      rating: recipe.rating,
+      nutritionalInfo: recipe.nutritionalInfo,
+    );
+    
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => RecipeDetailsScreen(
+          recipe: detailedRecipe,
+        ),
       ),
     );
-
-    try {
-      // Get detailed recipe
-      final detailedRecipe = await _recipeService.getRecipeDetails(recipe.id);
-      
-      if (mounted) {
-        Navigator.of(context).pop(); // Close loading dialog
-        
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => RecipeDetailsScreen(
-              recipe: detailedRecipe,
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        Navigator.of(context).pop(); // Close loading dialog
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error loading recipe details: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
   }
 }

@@ -107,7 +107,7 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Icon(
-                          _getRecipeIcon(widget.recipe.category),
+                          Icons.restaurant_menu,
                           size: 80,
                           color: Colors.grey[600],
                         ),
@@ -145,6 +145,25 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
                       ),
                       
                       const SizedBox(height: 24),
+                      
+                      // Nutritional Information section
+                      if (widget.recipe.nutritionalInfo != null)
+                        Column(
+                          children: [
+                            _buildSection(
+                              'Nutritional Information',
+                              [
+                                _buildNutritionRow('Servings', '${widget.recipe.nutritionalInfo!.servings}'),
+                                _buildNutritionRow('Calories', '${widget.recipe.nutritionalInfo!.calories} kcal'),
+                                _buildNutritionRow('Protein', '${widget.recipe.nutritionalInfo!.protein}g'),
+                                _buildNutritionRow('Carbohydrates', '${widget.recipe.nutritionalInfo!.carbs}g'),
+                                _buildNutritionRow('Fat', '${widget.recipe.nutritionalInfo!.fat}g'),
+                                _buildNutritionRow('Fiber', '${widget.recipe.nutritionalInfo!.fiber}g'),
+                              ],
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+                        ),
                       
                       // Ingredients section
                       _buildSection(
@@ -383,21 +402,30 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
     );
   }
 
-  IconData _getRecipeIcon(String category) {
-    switch (category.toLowerCase()) {
-      case 'breakfast':
-        return Icons.breakfast_dining;
-      case 'lunch':
-        return Icons.lunch_dining;
-      case 'dinner':
-        return Icons.dinner_dining;
-      case 'snack':
-        return Icons.cookie;
-      case 'dessert':
-        return Icons.cake;
-      default:
-        return Icons.restaurant_menu;
-    }
+  Widget _buildNutritionRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 16,
+              color: Colors.black87,
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF4CAF50),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _saveRecipe() async {
@@ -435,11 +463,12 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
           title: widget.recipe.title,
           description: widget.recipe.description,
           ingredients: widget.recipe.ingredients,
+          instructions: widget.recipe.instructions,
           prepTimeMinutes: widget.recipe.prepTimeMinutes,
           cookTimeMinutes: widget.recipe.cookTimeMinutes,
           difficulty: widget.recipe.difficulty,
           rating: widget.recipe.rating,
-          category: widget.recipe.category,
+          nutritionalInfo: widget.recipe.nutritionalInfo,
         );
 
         final bookmark = Bookmark(

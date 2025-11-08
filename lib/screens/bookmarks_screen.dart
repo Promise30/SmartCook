@@ -365,14 +365,14 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
       title: bookmark.recipe.title,
       description: bookmark.recipe.description,
       ingredients: bookmark.recipe.ingredients,
-      instructions: [], // No instructions in suggestion
+      instructions: bookmark.recipe.instructions,
       prepTimeMinutes: bookmark.recipe.prepTimeMinutes,
       cookTimeMinutes: bookmark.recipe.cookTimeMinutes,
-      servings: 4, // Default value
+      servings: bookmark.recipe.nutritionalInfo?.servings ?? 4, // Use nutritional info or default
       difficulty: bookmark.recipe.difficulty,
       imageUrl: null,
       rating: bookmark.recipe.rating,
-      category: bookmark.recipe.category,
+      nutritionalInfo: bookmark.recipe.nutritionalInfo,
     );
     
     Navigator.of(context).push(

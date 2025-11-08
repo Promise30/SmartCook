@@ -15,6 +15,9 @@ class IngredientsAPIService {
   // Uncomment below for local testing:
   // static const String baseUrl = 'http://192.168.1.197:5000';
   
+  // Enable mock mode when Azure is down
+  static const bool useMockMode = false;  // Azure is now working!
+  
   final http.Client _client = http.Client();
 
   /// Predict multiple ingredients from images
@@ -22,6 +25,11 @@ class IngredientsAPIService {
   /// Takes a list of image files and returns predictions for each one
   /// Perfect for mobile apps where users capture multiple ingredient photos
   Future<Map<String, dynamic>> predictMultiple(List<File> images) async {
+    // Use mock data when Azure is down
+    if (useMockMode) {
+      return _generateMockPredictions(images.length);
+    }
+    
     try {
       // Create multipart request
       var request = http.MultipartRequest(
@@ -190,8 +198,32 @@ class IngredientsAPIService {
     }
   }
 
+  /// Generate mock predictions for testing when API is unavailable
+  Map<String, dynamic> _generateMockPredictions(int imageCount) {
+    final mockIngredients = [
+      'Tomato', 'Onion', 'Bell Pepper', 'Scotch Bonnet', 'Garlic',
+      'Ginger', 'Palm Oil', 'Locust Beans', 'Stockfish', 'Crayfish'
+    ];
+    
+    final predictions = <Map<String, dynamic>>[];
+    for (int i = 0; i < imageCount && i < mockIngredients.length; i++) {
+      predictions.add({
+        'ingredient': mockIngredients[i],
+        'confidence': 0.85 + (i * 0.03), // 85-97% confidence
+      });
+    }
+    
+    return {
+      'success': true,
+      'predictions': predictions,
+      'model_version': 'mock-v1.0',
+      'processing_time': '0.1s',
+    };
+  }
+
   void dispose() {
     _client.close();
   }
 }
+
 

@@ -22,7 +22,11 @@ Recipe _$RecipeFromJson(Map<String, dynamic> json) => Recipe(
   difficulty: json['difficulty'] as String,
   imageUrl: json['imageUrl'] as String?,
   rating: (json['rating'] as num).toDouble(),
-  category: json['category'] as String,
+  nutritionalInfo: json['nutritionalInfo'] == null
+      ? null
+      : NutritionalInfo.fromJson(
+          json['nutritionalInfo'] as Map<String, dynamic>,
+        ),
 );
 
 Map<String, dynamic> _$RecipeToJson(Recipe instance) => <String, dynamic>{
@@ -37,7 +41,7 @@ Map<String, dynamic> _$RecipeToJson(Recipe instance) => <String, dynamic>{
   'difficulty': instance.difficulty,
   'imageUrl': instance.imageUrl,
   'rating': instance.rating,
-  'category': instance.category,
+  'nutritionalInfo': instance.nutritionalInfo,
 };
 
 RecipeSuggestion _$RecipeSuggestionFromJson(Map<String, dynamic> json) =>
@@ -48,11 +52,18 @@ RecipeSuggestion _$RecipeSuggestionFromJson(Map<String, dynamic> json) =>
       ingredients: (json['ingredients'] as List<dynamic>)
           .map((e) => e as String)
           .toList(),
+      instructions: (json['instructions'] as List<dynamic>)
+          .map((e) => e as String)
+          .toList(),
       prepTimeMinutes: (json['prepTimeMinutes'] as num).toInt(),
       cookTimeMinutes: (json['cookTimeMinutes'] as num).toInt(),
       difficulty: json['difficulty'] as String,
       rating: (json['rating'] as num).toDouble(),
-      category: json['category'] as String,
+      nutritionalInfo: json['nutritionalInfo'] == null
+          ? null
+          : NutritionalInfo.fromJson(
+              json['nutritionalInfo'] as Map<String, dynamic>,
+            ),
     );
 
 Map<String, dynamic> _$RecipeSuggestionToJson(RecipeSuggestion instance) =>
@@ -61,9 +72,10 @@ Map<String, dynamic> _$RecipeSuggestionToJson(RecipeSuggestion instance) =>
       'title': instance.title,
       'description': instance.description,
       'ingredients': instance.ingredients,
+      'instructions': instance.instructions,
       'prepTimeMinutes': instance.prepTimeMinutes,
       'cookTimeMinutes': instance.cookTimeMinutes,
       'difficulty': instance.difficulty,
       'rating': instance.rating,
-      'category': instance.category,
+      'nutritionalInfo': instance.nutritionalInfo,
     };

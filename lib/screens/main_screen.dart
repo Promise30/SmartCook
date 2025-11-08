@@ -345,19 +345,23 @@ class _MainScreenState extends State<MainScreen> {
           ],
         ),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               icon,
               color: Colors.white,
               size: 24,
             ),
-            const SizedBox(width: 16),
-            Text(
-              text,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
+            const SizedBox(width: 12),
+            Flexible(
+              child: Text(
+                text,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -625,25 +629,33 @@ class _MainScreenState extends State<MainScreen> {
     try {
       // Test connection to Azure API
       final isConnected = await _apiService.testConnection();
-      if (!isConnected && mounted) {
-        throw Exception('Cannot connect to Azure API.\n\n'
-            'Please check:\n'
-            '1. Your internet connection is active\n'
-            '2. Azure API is running at:\n'
-            '   https://food-ingredients-recogition-api.azurewebsites.net\n\n'
-            'If the problem persists, the API may be cold-starting.\n'
-            'Please wait 10-15 seconds and try again.');
-      }
-
-      // Send images to Azure API for prediction
-      final apiResponse = await _apiService.predictMultiple(_selectedImages);
       
       List<Ingredient> ingredients;
-      if (apiResponse['success'] == true) {
-        // Convert API response to ingredients
-        ingredients = _convertAPIResponseToIngredients(apiResponse);
+      
+      if (!isConnected) {
+        // FALLBACK: Use mock ingredients when Azure is down
+        print('Azure API unavailable - using mock ingredients for testing');
+        ingredients = _generateMockIngredients(_selectedImages);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('⚠️ Using demo mode - Azure API unavailable'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
       } else {
-        throw Exception(apiResponse['error'] ?? 'API prediction failed');
+        // Send images to Azure API for prediction
+        final apiResponse = await _apiService.predictMultiple(_selectedImages);
+        
+        if (apiResponse['success'] == true) {
+          // Convert API response to ingredients
+          ingredients = _convertAPIResponseToIngredients(apiResponse);
+        } else {
+          throw Exception(apiResponse['error'] ?? 'API prediction failed');
+        }
       }
 
       // Navigate to review ingredients screen
@@ -723,6 +735,32 @@ class _MainScreenState extends State<MainScreen> {
       'ponmo': 'Proteins',
     };
     return categories[ingredient.toLowerCase()] ?? 'Other';
+  }
+
+  /// Generate mock ingredients for testing when Azure API is down
+  List<Ingredient> _generateMockIngredients(List<File> images) {
+    final mockIngredients = [
+      'tomato', 'onion', 'ata_rodo', 'rice', 'plantain',
+      'beans', 'okra', 'ewedu', 'yam', 'egusi'
+    ];
+    
+    return images.asMap().entries.map<Ingredient>((entry) {
+      final index = entry.key;
+      final image = entry.value;
+      // Cycle through mock ingredients
+      final ingredientName = mockIngredients[index % mockIngredients.length];
+      
+      return Ingredient(
+        id: DateTime.now().millisecondsSinceEpoch.toString() + index.toString(),
+        name: ingredientName,
+        confidence: 0.85 + (index % 3) * 0.05, // 85-95% confidence
+        imagePath: image.path,
+        cookingMethod: null,
+        quantityEstimate: null,
+        category: _getCategoryFromIngredient(ingredientName),
+        isManual: false,
+      );
+    }).toList();
   }
 
   @override

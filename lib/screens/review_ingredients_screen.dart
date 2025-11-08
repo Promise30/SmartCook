@@ -205,6 +205,7 @@ class _ReviewIngredientsScreenState extends State<ReviewIngredientsScreen> {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   ingredient.name,
@@ -215,18 +216,51 @@ class _ReviewIngredientsScreenState extends State<ReviewIngredientsScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  '${(ingredient.confidence * 100).toStringAsFixed(0)}% confidence',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: ingredient.confidence > 0.8 
-                        ? Colors.green[600] 
-                        : ingredient.confidence > 0.6 
-                            ? Colors.orange[600] 
-                            : Colors.red[600],
-                    fontWeight: FontWeight.w500,
+                // Only show confidence for ML-detected ingredients
+                if (!ingredient.isManual)
+                  Row(
+                    children: [
+                      Icon(
+                        ingredient.confidence >= 0.85 
+                            ? Icons.check_circle 
+                            : Icons.warning_amber_rounded,
+                        size: 16,
+                        color: _getConfidenceColor(ingredient.confidence),
+                      ),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          _getConfidenceText(ingredient.confidence),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: _getConfidenceColor(ingredient.confidence),
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  // Show "Manually added" label for manual ingredients
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.edit,
+                        size: 16,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Manually added',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
               ],
             ),
           ),
@@ -293,6 +327,18 @@ class _ReviewIngredientsScreenState extends State<ReviewIngredientsScreen> {
       return Icons.eco;
     }
     return Icons.restaurant_menu;
+  }
+
+  String _getConfidenceText(double confidence) {
+    if (confidence >= 0.85) return 'High confidence ✓';
+    if (confidence >= 0.70) return 'Moderate confidence ⚠️';
+    return 'Low - Please verify ⚠️';
+  }
+
+  Color _getConfidenceColor(double confidence) {
+    if (confidence >= 0.85) return Colors.green[600]!;
+    if (confidence >= 0.70) return Colors.orange[600]!;
+    return Colors.red[600]!;
   }
 
   void _editIngredient(int index) async {
