@@ -1,25 +1,25 @@
-import '../lib/services/recipe_ai_service.dart';
+import 'package:ml_app/services/recipe_ai_service.dart';
 
 void main() async {
-  print('🧪 Testing Gemini Recipe Generation...\n');
+  print('Testing Gemini Recipe Generation...\n');
   
   final service = RecipeAIService();
   
   // Test with common Nigerian ingredients
   final testIngredients = ['tomatoes', 'rice', 'chicken', 'onions'];
   
-  print('📝 Test Ingredients: ${testIngredients.join(", ")}\n');
+  print('Test Ingredients: ${testIngredients.join(", ")}\n');
   print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
   
   try {
     final recipes = await service.generateRecipeSuggestions(testIngredients);
     
-    print('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    print('✅ SUCCESS! Generated ${recipes.length} recipes\n');
+    print('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    print('SUCCESS! Generated ${recipes.length} recipes\n');
     
     for (var i = 0; i < recipes.length; i++) {
       final recipe = recipes[i];
-      print('📋 Recipe ${i + 1}: ${recipe.title}');
+      print('Recipe ${i + 1}: ${recipe.title}');
       print('   Difficulty: ${recipe.difficulty}');
       print('   Time: ${recipe.prepTimeMinutes + recipe.cookTimeMinutes} minutes');
       print('   Rating: ${recipe.rating}/5.0');
@@ -37,7 +37,7 @@ void main() async {
       
       // Print first recipe's full instructions for review
       if (i == 0) {
-        print('\n   📝 DETAILED COOKING INSTRUCTIONS:');
+        print('\n   DETAILED COOKING INSTRUCTIONS:');
         for (var j = 0; j < recipe.instructions.length; j++) {
           print('   ${j + 1}. ${recipe.instructions[j]}');
         }
@@ -47,8 +47,8 @@ void main() async {
     }
     
     // Verify recipe quality
-    print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    print('📊 Quality Check:');
+    print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    print('Quality Check:');
     
     final hasValidTitles = recipes.every((r) => r.title.isNotEmpty);
     final hasIngredients = recipes.every((r) => r.ingredients.isNotEmpty);
@@ -65,13 +65,13 @@ void main() async {
     print('   ✓ Nigerian/Yoruba theme: ${hasNigerianTheme ? "YES" : "NO"}');
     
     if (hasValidTitles && hasIngredients && hasInstructions && hasNigerianTheme) {
-      print('\n🎉 ALL CHECKS PASSED! Gemini is generating accurate Nigerian recipes with detailed instructions!');
+      print('\nALL CHECKS PASSED! Gemini is generating accurate Nigerian recipes with detailed instructions!');
     } else {
-      print('\n⚠️ Some quality checks failed. Review recipe output above.');
+      print('\nWARNING: Some quality checks failed. Review recipe output above.');
     }
     
   } catch (e, stackTrace) {
-    print('\n❌ TEST FAILED!');
+    print('\nTEST FAILED!');
     print('Error: $e');
     print('\nStack trace:');
     print(stackTrace);

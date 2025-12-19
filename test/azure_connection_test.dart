@@ -20,7 +20,7 @@ void main() {
       expect(data['model_loaded'], true);
       expect(data['status'], 'healthy');
       
-      print('✅ Health check passed!');
+      print('Health check passed!');
       print('   Model loaded: ${data['model_loaded']}');
       print('   Status: ${data['status']}');
     });
@@ -38,7 +38,7 @@ void main() {
       expect(data['ingredients'], isList);
       expect(data['count'], 15);
       
-      print('✅ Ingredients endpoint passed!');
+      print('Ingredients endpoint passed!');
       print('   Found ${data['count']} ingredients:');
       for (var ingredient in data['ingredients']) {
         print('   - $ingredient');
@@ -53,7 +53,7 @@ void main() {
 
       expect(response.statusCode, 200);
       
-      print('✅ Root endpoint passed!');
+      print('Root endpoint passed!');
       print('   API is accessible and responding');
     });
   });

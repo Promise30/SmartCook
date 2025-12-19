@@ -4,9 +4,11 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../services/ingredients_api_service.dart';
 import '../models/ingredient.dart';
+import '../widgets/error_dialog.dart';
 import 'review_ingredients_screen.dart';
 import 'history_screen.dart';
 import 'bookmarks_screen.dart';
+import 'text_ingredients_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -152,6 +154,15 @@ class _MainScreenState extends State<MainScreen> {
           icon: Icons.camera_alt,
           text: 'Capture Images',
           onTap: _startCapturingMode,
+        ),
+        
+        const SizedBox(height: 20),
+        
+        // Type Ingredients button
+        _buildActionButton(
+          icon: Icons.edit_note,
+          text: 'Type Ingredients',
+          onTap: _startTextInputMode,
         ),
         
         const SizedBox(height: 40),
@@ -345,23 +356,19 @@ class _MainScreenState extends State<MainScreen> {
           ],
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               icon,
               color: Colors.white,
               size: 24,
             ),
-            const SizedBox(width: 12),
-            Flexible(
-              child: Text(
-                text,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-                overflow: TextOverflow.ellipsis,
+            const SizedBox(width: 16),
+            Text(
+              text,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -438,6 +445,14 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
+  void _startTextInputMode() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const TextIngredientsScreen(),
+      ),
+    );
+  }
+
   Future<void> _pickMultipleImagesFromGallery() async {
     final ImagePicker picker = ImagePicker();
     final List<XFile> images = await picker.pickMultiImage();
@@ -455,7 +470,7 @@ class _MainScreenState extends State<MainScreen> {
           _isCapturingMode = true; // Set capturing mode without clearing images
         });
       } else {
-        // For mobile, just use File objects
+        // For mobile, use File objects
         setState(() {
           _selectedImages = images.map((image) => File(image.path)).toList();
           _isCapturingMode = true; // Set capturing mode without clearing images
@@ -628,34 +643,63 @@ class _MainScreenState extends State<MainScreen> {
 
     try {
       // Test connection to Azure API
-      final isConnected = await _apiService.testConnection();
+      final connectionTest = await _apiService.testConnection();
+      
+      if (!connectionTest['success'] && mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        
+        final shouldRetry = await ErrorDialog.show(
+          context,
+          title: connectionTest['cold_start'] == true ? 'AI Service Starting Up' : 'Connection Failed',
+          message: connectionTest['message'] ?? 'Unable to connect to the AI service.',
+          showRetry: true,
+        );
+        
+        if (shouldRetry) {
+          await _analyzeAllImages();
+        }
+        return;
+      }
+
+      // Send images to Azure API for prediction
+      final apiResponse = await _apiService.predictMultiple(_selectedImages);
       
       List<Ingredient> ingredients;
-      
-      if (!isConnected) {
-        // FALLBACK: Use mock ingredients when Azure is down
-        print('Azure API unavailable - using mock ingredients for testing');
-        ingredients = _generateMockIngredients(_selectedImages);
+      if (apiResponse['success'] == true) {
+        // Convert API response to ingredients
+        ingredients = _convertAPIResponseToIngredients(apiResponse);
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
         
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('⚠️ Using demo mode - Azure API unavailable'),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 3),
-            ),
+          final errorType = apiResponse['error'] ?? 'unknown';
+          String title = 'Analysis Failed';
+          String message = apiResponse['message'] ?? 'Unable to analyze your images.';
+          
+          if (errorType == 'cold_start') {
+            title = 'AI Service Starting Up';
+          } else if (errorType == 'timeout') {
+            title = 'Request Timed Out';
+          } else if (errorType == 'network') {
+            title = 'No Internet Connection';
+          }
+          
+          final shouldRetry = await ErrorDialog.show(
+            context,
+            title: title,
+            message: message,
+            showRetry: true,
           );
+          
+          if (shouldRetry) {
+            await _analyzeAllImages();
+          }
         }
-      } else {
-        // Send images to Azure API for prediction
-        final apiResponse = await _apiService.predictMultiple(_selectedImages);
-        
-        if (apiResponse['success'] == true) {
-          // Convert API response to ingredients
-          ingredients = _convertAPIResponseToIngredients(apiResponse);
-        } else {
-          throw Exception(apiResponse['error'] ?? 'API prediction failed');
-        }
+        return;
       }
 
       // Navigate to review ingredients screen
@@ -675,13 +719,16 @@ class _MainScreenState extends State<MainScreen> {
       });
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error analyzing images: $e'),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 5),
-          ),
+        final shouldRetry = await ErrorDialog.show(
+          context,
+          title: 'Unexpected Error',
+          message: 'Something went wrong while analyzing your images. Please try again.',
+          showRetry: true,
         );
+        
+        if (shouldRetry) {
+          await _analyzeAllImages();
+        }
       }
     }
   }
@@ -735,32 +782,6 @@ class _MainScreenState extends State<MainScreen> {
       'ponmo': 'Proteins',
     };
     return categories[ingredient.toLowerCase()] ?? 'Other';
-  }
-
-  /// Generate mock ingredients for testing when Azure API is down
-  List<Ingredient> _generateMockIngredients(List<File> images) {
-    final mockIngredients = [
-      'tomato', 'onion', 'ata_rodo', 'rice', 'plantain',
-      'beans', 'okra', 'ewedu', 'yam', 'egusi'
-    ];
-    
-    return images.asMap().entries.map<Ingredient>((entry) {
-      final index = entry.key;
-      final image = entry.value;
-      // Cycle through mock ingredients
-      final ingredientName = mockIngredients[index % mockIngredients.length];
-      
-      return Ingredient(
-        id: DateTime.now().millisecondsSinceEpoch.toString() + index.toString(),
-        name: ingredientName,
-        confidence: 0.85 + (index % 3) * 0.05, // 85-95% confidence
-        imagePath: image.path,
-        cookingMethod: null,
-        quantityEstimate: null,
-        category: _getCategoryFromIngredient(ingredientName),
-        isManual: false,
-      );
-    }).toList();
   }
 
   @override

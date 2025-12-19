@@ -5,6 +5,8 @@ import '../models/ingredient.dart';
 import '../models/history_entry.dart';
 import '../services/recipe_ai_service.dart';
 import '../services/database_service.dart';
+import '../widgets/loading_dialog.dart';
+import '../widgets/error_dialog.dart';
 import 'recipe_suggestions_screen.dart';
 
 class ReviewIngredientsScreen extends StatefulWidget {
@@ -23,7 +25,6 @@ class _ReviewIngredientsScreenState extends State<ReviewIngredientsScreen> {
   late List<Ingredient> _ingredients;
   final RecipeAIService _recipeService = RecipeAIService();
   final DatabaseService _databaseService = DatabaseService();
-  bool _isLoading = false;
 
   @override
   void initState() {
@@ -134,19 +135,10 @@ class _ReviewIngredientsScreenState extends State<ReviewIngredientsScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text(
-                            'Continue',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
+                    child: const Text(
+                      'Continue',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
               ),
@@ -330,9 +322,9 @@ class _ReviewIngredientsScreenState extends State<ReviewIngredientsScreen> {
   }
 
   String _getConfidenceText(double confidence) {
-    if (confidence >= 0.85) return 'High confidence ✓';
-    if (confidence >= 0.70) return 'Moderate confidence ⚠️';
-    return 'Low - Please verify ⚠️';
+    if (confidence >= 0.85) return 'High confidence';
+    if (confidence >= 0.70) return 'Moderate confidence';
+    return 'Low - Please verify';
   }
 
   Color _getConfidenceColor(double confidence) {
@@ -636,14 +628,23 @@ class _ReviewIngredientsScreenState extends State<ReviewIngredientsScreen> {
   Future<void> _continueToRecipes() async {
     if (_ingredients.isEmpty) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    // Show loading dialog with informative message
+    if (mounted) {
+      LoadingDialog.show(
+        context,
+        message: 'Generating personalized recipes...\n\nOur AI chef is creating delicious Nigerian recipes for you. This may take 10-15 seconds.',
+      );
+    }
 
     try {
       // Generate recipe suggestions
       final ingredientNames = _ingredients.map((i) => i.name).toList();
       final recipes = await _recipeService.generateRecipeSuggestions(ingredientNames);
+      
+      // Hide loading dialog
+      if (mounted) {
+        LoadingDialog.hide(context);
+      }
       
       // Save to history
       final historyEntry = HistoryEntry(
@@ -668,20 +669,43 @@ class _ReviewIngredientsScreenState extends State<ReviewIngredientsScreen> {
         );
       }
     } catch (e) {
+      // Hide loading dialog
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error generating recipes: $e'),
-            backgroundColor: Colors.red,
-          ),
+        LoadingDialog.hide(context);
+      }
+      
+      // Show error dialog with retry option
+      if (mounted) {
+        final shouldRetry = await ErrorDialog.show(
+          context,
+          title: 'Recipe Generation Failed',
+          message: _getRecipeErrorMessage(e),
+          showRetry: true,
+          technicalDetails: e.toString(),
         );
+        
+        if (shouldRetry) {
+          // Retry recipe generation
+          await _continueToRecipes();
+        }
       }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+    }
+  }
+
+  /// Get user-friendly error message for recipe generation
+  String _getRecipeErrorMessage(dynamic error) {
+    final errorStr = error.toString();
+    
+    if (errorStr.contains('No internet connection') || errorStr.contains('SocketException')) {
+      return 'No internet connection detected.\n\nPlease check your network and try again.';
+    } else if (errorStr.contains('timed out') || errorStr.contains('timeout')) {
+      return 'The AI is taking longer than expected.\n\nThis might be due to a slow connection or high server load. Please try again.';
+    } else if (errorStr.contains('Rate Limit') || errorStr.contains('429')) {
+      return 'Too many requests.\n\nPlease wait a moment before trying again.';
+    } else if (errorStr.contains('service is temporarily unavailable') || errorStr.contains('500')) {
+      return 'Our AI service is temporarily unavailable.\n\nPlease try again in a few moments.';
+    } else {
+      return 'Failed to generate recipes.\n\nPlease check your internet connection and try again.';
     }
   }
 }

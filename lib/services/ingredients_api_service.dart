@@ -15,9 +15,6 @@ class IngredientsAPIService {
   // Uncomment below for local testing:
   // static const String baseUrl = 'http://192.168.1.197:5000';
   
-  // Enable mock mode when Azure is down
-  static const bool useMockMode = false;  // Azure is now working!
-  
   final http.Client _client = http.Client();
 
   /// Predict multiple ingredients from images
@@ -25,11 +22,6 @@ class IngredientsAPIService {
   /// Takes a list of image files and returns predictions for each one
   /// Perfect for mobile apps where users capture multiple ingredient photos
   Future<Map<String, dynamic>> predictMultiple(List<File> images) async {
-    // Use mock data when Azure is down
-    if (useMockMode) {
-      return _generateMockPredictions(images.length);
-    }
-    
     try {
       // Create multipart request
       var request = http.MultipartRequest(
@@ -50,23 +42,48 @@ class IngredientsAPIService {
         request.files.add(multipartFile);
       }
 
-      // Send request
-      var streamedResponse = await request.send();
+      // Send request with timeout
+      var streamedResponse = await request.send().timeout(
+        Duration(seconds: 60),
+        onTimeout: () {
+          throw TimeoutException('Request took too long. The service might be starting up.');
+        },
+      );
       var response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         return data;
+      } else if (response.statusCode == 503) {
+        return {
+          'success': false,
+          'error': 'cold_start',
+          'message': 'The AI service is starting up. Please wait 10-20 seconds and try again.',
+        };
       } else {
         return {
           'success': false,
-          'error': 'HTTP ${response.statusCode}: ${response.body}',
+          'error': 'server_error',
+          'message': 'The AI service encountered an error. Please try again.',
         };
       }
+    } on TimeoutException catch (e) {
+      return {
+        'success': false,
+        'error': 'timeout',
+        'message': e.message ?? 'Request timed out',
+      };
+    } on SocketException {
+      return {
+        'success': false,
+        'error': 'network',
+        'message': 'No internet connection. Please check your network.',
+      };
     } catch (e) {
       return {
         'success': false,
-        'error': 'Network error: $e',
+        'error': 'unknown',
+        'message': 'An unexpected error occurred. Please try again.',
       };
     }
   }
@@ -111,24 +128,54 @@ class IngredientsAPIService {
     }
   }
 
-  /// Test connection to API
+  /// Test connection to API with retry logic for cold starts
   /// 
-  /// Call this to verify the API is reachable before sending images
-  Future<bool> testConnection() async {
+  /// Azure serverless functions may need 10-20 seconds to wake up from cold start
+  Future<Map<String, dynamic>> testConnection() async {
     try {
       final response = await _client.get(
         Uri.parse('$baseUrl/health'),
         headers: {'Accept': 'application/json'},
-      ).timeout(Duration(seconds: 5));
+      ).timeout(Duration(seconds: 30)); // Increased timeout for cold starts
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return data['model_loaded'] == true;
+        return {
+          'success': data['model_loaded'] == true,
+          'cold_start': false,
+        };
+      } else if (response.statusCode == 503) {
+        // Service unavailable - likely cold starting
+        return {
+          'success': false,
+          'cold_start': true,
+          'message': 'The AI service is waking up. This usually takes 10-20 seconds on first use.',
+        };
       }
-      return false;
+      return {
+        'success': false,
+        'cold_start': false,
+        'message': 'Unable to connect to the AI service.',
+      };
+    } on TimeoutException {
+      return {
+        'success': false,
+        'cold_start': true,
+        'message': 'The AI service is taking longer than expected to wake up. Please try again in a moment.',
+      };
+    } on SocketException {
+      return {
+        'success': false,
+        'cold_start': false,
+        'message': 'No internet connection. Please check your network.',
+      };
     } catch (e) {
       print('Connection test failed: $e');
-      return false;
+      return {
+        'success': false,
+        'cold_start': false,
+        'message': 'Connection error. Please check your internet and try again.',
+      };
     }
   }
 
@@ -198,32 +245,8 @@ class IngredientsAPIService {
     }
   }
 
-  /// Generate mock predictions for testing when API is unavailable
-  Map<String, dynamic> _generateMockPredictions(int imageCount) {
-    final mockIngredients = [
-      'Tomato', 'Onion', 'Bell Pepper', 'Scotch Bonnet', 'Garlic',
-      'Ginger', 'Palm Oil', 'Locust Beans', 'Stockfish', 'Crayfish'
-    ];
-    
-    final predictions = <Map<String, dynamic>>[];
-    for (int i = 0; i < imageCount && i < mockIngredients.length; i++) {
-      predictions.add({
-        'ingredient': mockIngredients[i],
-        'confidence': 0.85 + (i * 0.03), // 85-97% confidence
-      });
-    }
-    
-    return {
-      'success': true,
-      'predictions': predictions,
-      'model_version': 'mock-v1.0',
-      'processing_time': '0.1s',
-    };
-  }
-
   void dispose() {
     _client.close();
   }
 }
-
 
