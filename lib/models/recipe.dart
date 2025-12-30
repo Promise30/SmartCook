@@ -49,6 +49,7 @@ class RecipeSuggestion {
   final int cookTimeMinutes;
   final String difficulty;
   final double rating;
+  final String? imageUrl;
   final NutritionalInfo? nutritionalInfo;
 
   const RecipeSuggestion({
@@ -61,6 +62,7 @@ class RecipeSuggestion {
     required this.cookTimeMinutes,
     required this.difficulty,
     required this.rating,
+    this.imageUrl,
     this.nutritionalInfo,
   });
 
@@ -71,41 +73,46 @@ class RecipeSuggestion {
 }
 
 class NutritionalInfo {
-  final int calories;
-  final int protein; // in grams
-  final int carbs; // in grams
-  final int fat; // in grams
-  final int fiber; // in grams
-  final int servings;
+  // Dynamic map to store any nutritional information
+  final Map<String, dynamic> data;
 
-  const NutritionalInfo({
-    required this.calories,
-    required this.protein,
-    required this.carbs,
-    required this.fat,
-    required this.fiber,
-    required this.servings,
-  });
+  const NutritionalInfo({required this.data});
 
   factory NutritionalInfo.fromJson(Map<String, dynamic> json) {
-    return NutritionalInfo(
-      calories: json['calories'] as int,
-      protein: json['protein'] as int,
-      carbs: json['carbs'] as int,
-      fat: json['fat'] as int,
-      fiber: json['fiber'] as int,
-      servings: json['servings'] as int,
-    );
+    return NutritionalInfo(data: Map<String, dynamic>.from(json));
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'calories': calories,
-      'protein': protein,
-      'carbs': carbs,
-      'fat': fat,
-      'fiber': fiber,
-      'servings': servings,
-    };
+    return data;
   }
+
+  // Helper method to get all nutritional class names
+  List<String> get nutritionalClasses {
+    // Filter out 'servings' and only include fields with true values (food groups present)
+    return data.keys
+        .where((key) => key != 'servings' && data[key] == true)
+        .toList()
+      ..sort();
+  }
+
+  // Helper method to format class names for display
+  String formatClassName(String key) {
+    // Convert camelCase to Title Case
+    final result = key.replaceAllMapped(
+      RegExp(r'([A-Z])|([a-z])([A-Z])'),
+      (match) {
+        if (match.group(1) != null) return ' ${match.group(1)}';
+        return '${match.group(2)} ${match.group(3)}';
+      },
+    );
+    return result[0].toUpperCase() + result.substring(1);
+  }
+
+  // Convenience getters for common fields
+  int? get servings => data['servings'] as int?;
+  num? get calories => data['calories'] as num?;
+  num? get protein => data['protein'] as num?;
+  num? get carbs => data['carbs'] as num?;
+  num? get fat => data['fat'] as num?;
+  num? get fiber => data['fiber'] as num?;
 }

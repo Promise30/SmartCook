@@ -50,6 +50,9 @@ dependencies:
   
   # HTTP client for AI recipe generation
   dio: ^5.4.0
+  
+  # OCR for reading product labels
+  google_mlkit_text_recognition: ^0.13.0
 
 dev_dependencies:
   flutter_test:

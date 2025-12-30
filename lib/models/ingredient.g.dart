@@ -15,6 +15,7 @@ Ingredient _$IngredientFromJson(Map<String, dynamic> json) => Ingredient(
   quantityEstimate: json['quantityEstimate'] as String?,
   category: json['category'] as String,
   isManual: json['isManual'] as bool? ?? false,
+  detectionMethod: json['detectionMethod'] as String? ?? 'ml',
 );
 
 Map<String, dynamic> _$IngredientToJson(Ingredient instance) =>
@@ -27,4 +28,5 @@ Map<String, dynamic> _$IngredientToJson(Ingredient instance) =>
       'quantityEstimate': instance.quantityEstimate,
       'category': instance.category,
       'isManual': instance.isManual,
+      'detectionMethod': instance.detectionMethod,
     };

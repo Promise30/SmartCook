@@ -2,12 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../models/ingredient.dart';
-import '../models/history_entry.dart';
-import '../services/recipe_ai_service.dart';
-import '../services/database_service.dart';
-import '../widgets/loading_dialog.dart';
-import '../widgets/error_dialog.dart';
-import 'recipe_suggestions_screen.dart';
+import 'recipe_preferences_screen.dart';
 
 class ReviewIngredientsScreen extends StatefulWidget {
   final List<Ingredient> ingredients;
@@ -23,8 +18,6 @@ class ReviewIngredientsScreen extends StatefulWidget {
 
 class _ReviewIngredientsScreenState extends State<ReviewIngredientsScreen> {
   late List<Ingredient> _ingredients;
-  final RecipeAIService _recipeService = RecipeAIService();
-  final DatabaseService _databaseService = DatabaseService();
 
   @override
   void initState() {
@@ -208,10 +201,38 @@ class _ReviewIngredientsScreenState extends State<ReviewIngredientsScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                // Only show confidence for ML-detected ingredients
+                // Show detection method and confidence
                 if (!ingredient.isManual)
                   Row(
                     children: [
+                      // Detection method badge
+                      if (ingredient.detectionMethod == 'ocr')
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.blue[50],
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: Colors.blue[200]!),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.document_scanner, size: 12, color: Colors.blue[700]),
+                              const SizedBox(width: 3),
+                              Text(
+                                'Label',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.blue[700],
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (ingredient.detectionMethod == 'ocr')
+                        const SizedBox(width: 6),
+                      // Confidence indicator
                       Icon(
                         ingredient.confidence >= 0.85 
                             ? Icons.check_circle 
@@ -617,6 +638,7 @@ class _ReviewIngredientsScreenState extends State<ReviewIngredientsScreen> {
         imagePath: result['image']?.path,
         category: 'Manual',
         isManual: true,
+        detectionMethod: 'manual',
       );
 
       setState(() {
@@ -628,84 +650,16 @@ class _ReviewIngredientsScreenState extends State<ReviewIngredientsScreen> {
   Future<void> _continueToRecipes() async {
     if (_ingredients.isEmpty) return;
 
-    // Show loading dialog with informative message
+    // Navigate to recipe preferences screen
     if (mounted) {
-      LoadingDialog.show(
-        context,
-        message: 'Generating personalized recipes...\n\nOur AI chef is creating delicious Nigerian recipes for you. This may take 10-15 seconds.',
-      );
-    }
-
-    try {
-      // Generate recipe suggestions
-      final ingredientNames = _ingredients.map((i) => i.name).toList();
-      final recipes = await _recipeService.generateRecipeSuggestions(ingredientNames);
-      
-      // Hide loading dialog
-      if (mounted) {
-        LoadingDialog.hide(context);
-      }
-      
-      // Save to history
-      final historyEntry = HistoryEntry(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        timestamp: DateTime.now(),
-        ingredients: _ingredients,
-        suggestedRecipes: recipes,
-        topRecipe: recipes.isNotEmpty ? recipes.first.title : null,
-      );
-      
-      await _databaseService.saveHistoryEntry(historyEntry);
-
-      // Navigate to recipe suggestions
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => RecipeSuggestionsScreen(
-              ingredients: _ingredients,
-              recipes: recipes,
-            ),
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => RecipePreferencesScreen(
+            ingredients: _ingredients,
           ),
-        );
-      }
-    } catch (e) {
-      // Hide loading dialog
-      if (mounted) {
-        LoadingDialog.hide(context);
-      }
-      
-      // Show error dialog with retry option
-      if (mounted) {
-        final shouldRetry = await ErrorDialog.show(
-          context,
-          title: 'Recipe Generation Failed',
-          message: _getRecipeErrorMessage(e),
-          showRetry: true,
-          technicalDetails: e.toString(),
-        );
-        
-        if (shouldRetry) {
-          // Retry recipe generation
-          await _continueToRecipes();
-        }
-      }
+        ),
+      );
     }
   }
 
-  /// Get user-friendly error message for recipe generation
-  String _getRecipeErrorMessage(dynamic error) {
-    final errorStr = error.toString();
-    
-    if (errorStr.contains('No internet connection') || errorStr.contains('SocketException')) {
-      return 'No internet connection detected.\n\nPlease check your network and try again.';
-    } else if (errorStr.contains('timed out') || errorStr.contains('timeout')) {
-      return 'The AI is taking longer than expected.\n\nThis might be due to a slow connection or high server load. Please try again.';
-    } else if (errorStr.contains('Rate Limit') || errorStr.contains('429')) {
-      return 'Too many requests.\n\nPlease wait a moment before trying again.';
-    } else if (errorStr.contains('service is temporarily unavailable') || errorStr.contains('500')) {
-      return 'Our AI service is temporarily unavailable.\n\nPlease try again in a few moments.';
-    } else {
-      return 'Failed to generate recipes.\n\nPlease check your internet connection and try again.';
-    }
-  }
 }

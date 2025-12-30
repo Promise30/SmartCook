@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../services/ingredients_api_service.dart';
 import '../models/ingredient.dart';
+import '../services/ocr_service.dart';
 import '../widgets/error_dialog.dart';
 import 'review_ingredients_screen.dart';
 import 'history_screen.dart';
@@ -19,6 +20,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   final IngredientsAPIService _apiService = IngredientsAPIService();
+  final OCRService _ocrService = OCRService();
   
   List<File> _selectedImages = [];
   List<Uint8List> _selectedImageBytes = []; // For web compatibility
@@ -184,28 +186,29 @@ class _MainScreenState extends State<MainScreen> {
     return Column(
       children: [
         // Header
-        Row(
-          children: [
-            IconButton(
-              onPressed: _exitCapturingMode,
-              icon: const Icon(Icons.arrow_back, color: Colors.black),
-            ),
-            Expanded(
-              child: Text(
-                'Capture Images (${_selectedImages.length})',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black,
-                ),
-                textAlign: TextAlign.center,
+        Padding(
+          padding: const EdgeInsets.only(bottom: 20),
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: _exitCapturingMode,
+                icon: const Icon(Icons.arrow_back, color: Colors.black),
               ),
-            ),
-            const SizedBox(width: 48), // Balance the back button
-          ],
+              Expanded(
+                child: Text(
+                  'Capture Images (${_selectedImages.length})',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(width: 48), // Balance the back button
+            ],
+          ),
         ),
-        
-        const SizedBox(height: 20),
         
         // Images grid
         Expanded(
@@ -221,6 +224,7 @@ class _MainScreenState extends State<MainScreen> {
                 ),
               )
             : GridView.builder(
+                padding: const EdgeInsets.only(bottom: 10),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
                   crossAxisSpacing: 10,
@@ -234,31 +238,30 @@ class _MainScreenState extends State<MainScreen> {
               ),
         ),
         
-        const SizedBox(height: 20),
-        
         // Action buttons
-        Row(
-          children: [
-            Expanded(
-              child: _buildActionButton(
-                icon: Icons.add_a_photo,
-                text: 'Add More',
-                onTap: _showAddMoreOptions,
-              ),
-            ),
-            const SizedBox(width: 10),
-            if (_selectedImages.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.only(top: 20, bottom: 20),
+          child: Row(
+            children: [
               Expanded(
                 child: _buildActionButton(
-                  icon: _isLoading ? Icons.hourglass_empty : Icons.check,
-                  text: _isLoading ? 'Analyzing...' : 'Done',
-                  onTap: _isLoading ? () {} : _analyzeAllImages,
+                  icon: Icons.add_a_photo,
+                  text: 'Add More',
+                  onTap: _showAddMoreOptions,
                 ),
               ),
-          ],
+              const SizedBox(width: 10),
+              if (_selectedImages.isNotEmpty)
+                Expanded(
+                  child: _buildActionButton(
+                    icon: _isLoading ? Icons.hourglass_empty : Icons.check,
+                    text: _isLoading ? 'Analyzing...' : 'Done',
+                    onTap: _isLoading ? () {} : _analyzeAllImages,
+                  ),
+                ),
+            ],
+          ),
         ),
-        
-        const SizedBox(height: 20),
       ],
     );
   }
@@ -356,19 +359,23 @@ class _MainScreenState extends State<MainScreen> {
           ],
         ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               icon,
               color: Colors.white,
               size: 24,
             ),
-            const SizedBox(width: 16),
-            Text(
-              text,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
+            const SizedBox(width: 12),
+            Flexible(
+              child: Text(
+                text,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -637,15 +644,21 @@ class _MainScreenState extends State<MainScreen> {
   Future<void> _analyzeAllImages() async {
     if (_selectedImages.isEmpty) return;
 
+    print('=== Starting image analysis ===');
+    print('Number of images: ${_selectedImages.length}');
+
     setState(() {
       _isLoading = true;
     });
 
     try {
       // Test connection to Azure API
+      print('Testing Azure API connection...');
       final connectionTest = await _apiService.testConnection();
+      print('Connection test result: $connectionTest');
       
       if (!connectionTest['success'] && mounted) {
+        print('Connection test failed!');
         setState(() {
           _isLoading = false;
         });
@@ -664,13 +677,18 @@ class _MainScreenState extends State<MainScreen> {
       }
 
       // Send images to Azure API for prediction
+      print('Sending images to Azure for prediction...');
       final apiResponse = await _apiService.predictMultiple(_selectedImages);
+      print('API Response: $apiResponse');
       
       List<Ingredient> ingredients;
       if (apiResponse['success'] == true) {
-        // Convert API response to ingredients
-        ingredients = _convertAPIResponseToIngredients(apiResponse);
+        print('Success! Converting predictions...');
+        // Convert API response to ingredients with OCR fallback
+        ingredients = await _convertAPIResponseWithOCRFallback(apiResponse);
+        print('Found ${ingredients.length} ingredients');
       } else {
+        print('API call failed: ${apiResponse['error']}');
         setState(() {
           _isLoading = false;
         });
@@ -704,6 +722,7 @@ class _MainScreenState extends State<MainScreen> {
 
       // Navigate to review ingredients screen
       if (mounted) {
+        print('Navigating to review screen...');
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (context) => ReviewIngredientsScreen(
@@ -714,6 +733,7 @@ class _MainScreenState extends State<MainScreen> {
         _exitCapturingMode();
       }
     } catch (e) {
+      print('ERROR in _analyzeAllImages: $e');
       setState(() {
         _isLoading = false;
       });
@@ -733,33 +753,121 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  /// Convert REAL API response to ingredients
-  /// API format: {success: true, predictions: [{filename, ingredient, confidence, class_id, top_3}], ...}
-  List<Ingredient> _convertAPIResponseToIngredients(Map<String, dynamic> apiResponse) {
+  /// Hybrid detection: ML first, OCR as fallback for low confidence
+  /// Handles both raw ingredients (ML) and packaged products (OCR)
+  Future<List<Ingredient>> _convertAPIResponseWithOCRFallback(Map<String, dynamic> apiResponse) async {
     if (apiResponse['predictions'] == null) {
       return [];
     }
 
     List<dynamic> predictions = apiResponse['predictions'] as List;
+    List<Ingredient> ingredients = [];
     
-    return predictions.asMap().entries.map<Ingredient>((entry) {
+    for (var entry in predictions.asMap().entries) {
       final index = entry.key;
       final prediction = entry.value as Map<String, dynamic>;
       
-      // Get the corresponding image path from _selectedImages
       final imagePath = index < _selectedImages.length ? _selectedImages[index].path : null;
+      final confidence = (prediction['confidence'] ?? 0.0).toDouble();
+      final ingredientName = prediction['ingredient'] ?? 'Unknown';
       
-      return Ingredient(
-        id: DateTime.now().millisecondsSinceEpoch.toString() + prediction['ingredient'].toString(),
-        name: prediction['ingredient'] ?? 'Unknown',
-        confidence: (prediction['confidence'] ?? 0.0).toDouble(),
-        imagePath: imagePath,  // Add the actual image path!
-        cookingMethod: null,  // API doesn't provide this yet
-        quantityEstimate: null,  // API doesn't provide this yet
-        category: _getCategoryFromIngredient(prediction['ingredient']),
-        isManual: false,
-      );
-    }).toList();
+      // Try ML detection first
+      if (confidence >= 0.80) {
+        // High confidence - trust ML model
+        ingredients.add(Ingredient(
+          id: DateTime.now().millisecondsSinceEpoch.toString() + ingredientName + index.toString(),
+          name: ingredientName,
+          confidence: confidence,
+          imagePath: imagePath,
+          cookingMethod: null,
+          quantityEstimate: null,
+          category: _getCategoryFromIngredient(ingredientName),
+          isManual: false,
+          detectionMethod: 'ml',
+        ));
+      } else {
+        // Low confidence - check if OCR is appropriate before attempting
+        print('Low ML confidence ($confidence) for image $index - checking text density');
+        
+        if (index < _selectedImages.length) {
+          try {
+            // Pre-check: Analyze text density to determine if OCR is worthwhile
+            final shouldUseOCR = await _ocrService.shouldAttemptOCR(_selectedImages[index]);
+            
+            if (shouldUseOCR) {
+              // Image likely has text - attempt OCR
+              print('Text detected - attempting OCR processing');
+              final ocrText = await _ocrService.extractTextFromImage(_selectedImages[index]);
+              final parsedIngredient = _ocrService.parseIngredientFromLabel(ocrText);
+              
+              if (parsedIngredient != null) {
+                final ocrConfidence = _ocrService.getConfidenceLevel(ocrText, parsedIngredient);
+                print('OCR detected: $parsedIngredient (confidence: $ocrConfidence)');
+                
+                ingredients.add(Ingredient(
+                  id: DateTime.now().millisecondsSinceEpoch.toString() + parsedIngredient + index.toString(),
+                  name: parsedIngredient,
+                  confidence: ocrConfidence,
+                  imagePath: imagePath,
+                  cookingMethod: null,
+                  quantityEstimate: null,
+                  category: _getCategoryFromIngredient(parsedIngredient),
+                  isManual: false,
+                  detectionMethod: 'ocr',
+                ));
+              } else {
+                // OCR attempted but failed to parse - apply confidence penalty
+                print('OCR failed to parse ingredient - applying 15% confidence penalty');
+                final penalizedConfidence = (confidence * 0.85).clamp(0.0, 1.0);
+                ingredients.add(Ingredient(
+                  id: DateTime.now().millisecondsSinceEpoch.toString() + ingredientName + index.toString(),
+                  name: ingredientName,
+                  confidence: penalizedConfidence,
+                  imagePath: imagePath,
+                  cookingMethod: null,
+                  quantityEstimate: null,
+                  category: _getCategoryFromIngredient(ingredientName),
+                  isManual: false,
+                  detectionMethod: 'ml',
+                ));
+              }
+            } else {
+              // No significant text detected - use ML result as-is
+              print('No text detected - using ML result without OCR');
+              ingredients.add(Ingredient(
+                id: DateTime.now().millisecondsSinceEpoch.toString() + ingredientName + index.toString(),
+                name: ingredientName,
+                confidence: confidence,
+                imagePath: imagePath,
+                cookingMethod: null,
+                quantityEstimate: null,
+                category: _getCategoryFromIngredient(ingredientName),
+                isManual: false,
+                detectionMethod: 'ml',
+              ));
+            }
+          } catch (e) {
+            print('OCR processing error: $e');
+            // OCR error - use ML result with penalty
+            print('OCR error - applying 15% confidence penalty');
+            final penalizedConfidence = (confidence * 0.85).clamp(0.0, 1.0);
+            ingredients.add(Ingredient(
+              id: DateTime.now().millisecondsSinceEpoch.toString() + ingredientName + index.toString(),
+              name: ingredientName,
+              confidence: penalizedConfidence,
+              imagePath: imagePath,
+              cookingMethod: null,
+              quantityEstimate: null,
+              category: _getCategoryFromIngredient(ingredientName),
+              isManual: false,
+              detectionMethod: 'ml',
+            ));
+          }
+        }
+      }
+    }
+    
+    return ingredients;
   }
 
   /// Get category for Nigerian ingredients
@@ -786,6 +894,7 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   void dispose() {
+    _ocrService.dispose();
     super.dispose();
   }
 }

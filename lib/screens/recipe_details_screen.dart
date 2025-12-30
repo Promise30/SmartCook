@@ -98,23 +98,6 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
                       
                       const SizedBox(height: 16),
                       
-                      // Recipe image placeholder
-                      Container(
-                        width: double.infinity,
-                        height: 200,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[200],
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Icon(
-                          Icons.restaurant_menu,
-                          size: 80,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 24),
-                      
                       // Recipe info cards
                       Row(
                         children: [
@@ -146,20 +129,32 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
                       
                       const SizedBox(height: 24),
                       
+                      // Recipe description
+                      if (widget.recipe.description.isNotEmpty) ...[
+                        _buildSection(
+                          'Description',
+                          [
+                            Text(
+                              widget.recipe.description,
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+                      
                       // Nutritional Information section
-                      if (widget.recipe.nutritionalInfo != null)
+                      if (widget.recipe.nutritionalInfo != null && 
+                          widget.recipe.nutritionalInfo!.nutritionalClasses.isNotEmpty)
                         Column(
                           children: [
                             _buildSection(
                               'Nutritional Information',
-                              [
-                                _buildNutritionRow('Servings', '${widget.recipe.nutritionalInfo!.servings}'),
-                                _buildNutritionRow('Calories', '${widget.recipe.nutritionalInfo!.calories} kcal'),
-                                _buildNutritionRow('Protein', '${widget.recipe.nutritionalInfo!.protein}g'),
-                                _buildNutritionRow('Carbohydrates', '${widget.recipe.nutritionalInfo!.carbs}g'),
-                                _buildNutritionRow('Fat', '${widget.recipe.nutritionalInfo!.fat}g'),
-                                _buildNutritionRow('Fiber', '${widget.recipe.nutritionalInfo!.fiber}g'),
-                              ],
+                              widget.recipe.nutritionalInfo!.nutritionalClasses
+                                  .map((className) => _buildNutritionItem(
+                                        widget.recipe.nutritionalInfo!.formatClassName(className)
+                                      ))
+                                  .toList(),
                             ),
                             const SizedBox(height: 24),
                           ],
@@ -240,20 +235,6 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
                       ),
                       
                       const SizedBox(height: 24),
-                      
-                      // Recipe description
-                      if (widget.recipe.description.isNotEmpty) ...[
-                        _buildSection(
-                          'Description',
-                          [
-                            Text(
-                              widget.recipe.description,
-                              style: const TextStyle(fontSize: 16),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                      ],
                       
                       // Bottom spacing
                       const SizedBox(height: 20),
@@ -402,25 +383,22 @@ class _RecipeDetailsScreenState extends State<RecipeDetailsScreen> {
     );
   }
 
-  Widget _buildNutritionRow(String label, String value) {
+  Widget _buildNutritionItem(String label) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          const Icon(
+            Icons.check_circle,
+            size: 20,
+            color: Color(0xFF4CAF50),
+          ),
+          const SizedBox(width: 12),
           Text(
             label,
             style: const TextStyle(
               fontSize: 16,
               color: Colors.black87,
-            ),
-          ),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF4CAF50),
             ),
           ),
         ],

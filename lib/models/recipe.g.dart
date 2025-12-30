@@ -59,6 +59,7 @@ RecipeSuggestion _$RecipeSuggestionFromJson(Map<String, dynamic> json) =>
       cookTimeMinutes: (json['cookTimeMinutes'] as num).toInt(),
       difficulty: json['difficulty'] as String,
       rating: (json['rating'] as num).toDouble(),
+      imageUrl: json['imageUrl'] as String?,
       nutritionalInfo: json['nutritionalInfo'] == null
           ? null
           : NutritionalInfo.fromJson(
@@ -77,5 +78,6 @@ Map<String, dynamic> _$RecipeSuggestionToJson(RecipeSuggestion instance) =>
       'cookTimeMinutes': instance.cookTimeMinutes,
       'difficulty': instance.difficulty,
       'rating': instance.rating,
+      'imageUrl': instance.imageUrl,
       'nutritionalInfo': instance.nutritionalInfo,
     };

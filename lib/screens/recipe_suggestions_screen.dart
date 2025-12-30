@@ -208,27 +208,81 @@ class _RecipeSuggestionsScreenState extends State<RecipeSuggestionsScreen> {
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        _getDifficultyColor(recipe.difficulty).withValues(alpha: 0.8),
-                        _getDifficultyColor(recipe.difficulty).withValues(alpha: 0.6),
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(40),
+                    borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: _getDifficultyColor(recipe.difficulty).withValues(alpha: 0.3),
+                        color: Colors.black.withValues(alpha: 0.1),
                         blurRadius: 8,
                         offset: const Offset(0, 4),
                       ),
                     ],
                   ),
-                  child: Icon(
-                    _getRecipeIcon(recipe.difficulty),
-                    size: 40,
-                    color: Colors.white,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: recipe.imageUrl != null && recipe.imageUrl!.isNotEmpty
+                        ? Image.network(
+                            recipe.imageUrl!,
+                            width: 80,
+                            height: 80,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              // Fallback to icon if image fails to load
+                              return Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      _getDifficultyColor(recipe.difficulty).withValues(alpha: 0.8),
+                                      _getDifficultyColor(recipe.difficulty).withValues(alpha: 0.6),
+                                    ],
+                                  ),
+                                ),
+                                child: Icon(
+                                  _getRecipeIcon(recipe.difficulty),
+                                  size: 40,
+                                  color: Colors.white,
+                                ),
+                              );
+                            },
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[200],
+                                ),
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                    value: loadingProgress.expectedTotalBytes != null
+                                        ? loadingProgress.cumulativeBytesLoaded /
+                                            loadingProgress.expectedTotalBytes!
+                                        : null,
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      _getDifficultyColor(recipe.difficulty),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          )
+                        : Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  _getDifficultyColor(recipe.difficulty).withValues(alpha: 0.8),
+                                  _getDifficultyColor(recipe.difficulty).withValues(alpha: 0.6),
+                                ],
+                              ),
+                            ),
+                            child: Icon(
+                              _getRecipeIcon(recipe.difficulty),
+                              size: 40,
+                              color: Colors.white,
+                            ),
+                          ),
                   ),
                 ),
                 
@@ -264,9 +318,7 @@ class _RecipeSuggestionsScreenState extends State<RecipeSuggestionsScreen> {
                         children: [
                           _buildInfoChip(Icons.access_time, recipe.totalTime),
                           const SizedBox(width: 8),
-                          _buildInfoChip(Icons.restaurant, '4'),
-                          const SizedBox(width: 8),
-                          _buildInfoChip(Icons.star, recipe.rating.toString()),
+                          _buildInfoChip(Icons.restaurant, '${recipe.nutritionalInfo?.servings ?? 4}'),
                         ],
                       ),
                     ],
