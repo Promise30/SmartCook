@@ -1,11 +1,11 @@
 # Nigerian Ingredients Recognition & Recipe Recommendation System
 
-A Flutter mobile app that uses **Azure ML API** and **AI Language models** to recognize Nigerian food ingredients from photos and suggest South-Western Nigerian recipes.
+A Flutter mobile app that uses **Azure ML API** and **AI Language model** to recognize Nigerian food ingredients from photos and suggest South-Western Nigerian recipes.
 
 ## Features
 
 - **Ingredient Recognition**: Capture or upload photos of ingredients
-- **AI-Powered Detection**: Azure TFLite model recognizes 15+ Nigerian ingredients
+- **AI-Powered Detection**: Azure TFLite model recognizes 30+ Nigerian ingredients
 - **Smart Recipe Suggestions**: Google Gemini AI generates relevant south-western Nigerian recipes based on detected ingredients
 - **Recipe Database**: Browse and bookmark favorite recipes
 - **History Tracking**: View past ingredient scans and recipe suggestions
@@ -17,7 +17,7 @@ A Flutter mobile app that uses **Azure ML API** and **AI Language models** to re
 - Flutter SDK 3.35.2 or higher
 - Android Studio / Xcode (for mobile development)
 - Android device or emulator (API 24+)
-- Google Gemini API key (FREE) or OpenAI API key (Paid)
+- Google Gemini API key (FREE) 
 
 ### Installation
 
@@ -40,8 +40,7 @@ A Flutter mobile app that uses **Azure ML API** and **AI Language models** to re
    
    Edit `lib/config/api_config.dart` and add your API key:
    - **Gemini (FREE)**: Get key at https://aistudio.google.com/apikey
-   - **OpenAI (Paid)**: Get key at https://platform.openai.com/api-keys
-
+  
 4. **Run the app**
    ```bash
    # List available devices
