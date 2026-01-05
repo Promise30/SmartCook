@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../lib/config/api_config.dart';
+import 'package:ml_app/config/api_config.dart';
 
 void main() async {
   print('Testing Gemini 2.5 Pro Configuration...\n');

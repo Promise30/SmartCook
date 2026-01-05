@@ -11,8 +11,8 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    // Auto-navigate after 3 seconds
-    Future.delayed(const Duration(seconds: 3), () {
+    // Auto-navigate after 5 seconds
+    Future.delayed(const Duration(seconds: 5), () {
       if (mounted) {
         Navigator.of(context).pushReplacementNamed('/main');
       }
@@ -36,54 +36,6 @@ class _SplashScreenState extends State<SplashScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              // Status bar area
-              Container(
-                height: 40,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // WiFi icon
-                    Container(
-                      width: 20,
-                      height: 15,
-                      decoration: BoxDecoration(
-                        color: Colors.black,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                      child: const Icon(
-                        Icons.wifi,
-                        color: Colors.white,
-                        size: 12,
-                      ),
-                    ),
-                    // Time
-                    const Text(
-                      '7:04',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black,
-                      ),
-                    ),
-                    // Battery icon
-                    Container(
-                      width: 24,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: Colors.black,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                      child: const Icon(
-                        Icons.battery_full,
-                        color: Colors.white,
-                        size: 10,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
               // Main content
               Expanded(
                 child: Column(

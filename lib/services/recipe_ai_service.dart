@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/recipe.dart';
+import '../models/recipe_preferences.dart';
 import '../config/api_config.dart';
 
 class RecipeAIService {
@@ -14,18 +15,32 @@ class RecipeAIService {
     print('Using Google Gemini API (${ApiConfig.geminiModel}) - FREE!');
     
     // No fallback - let errors propagate so failures are explicit
-    return await _generateGeminiRecipes(ingredients);
+    return await _generateGeminiRecipes(ingredients, null);
   }
 
-  Future<List<RecipeSuggestion>> _generateGeminiRecipes(List<String> ingredients) async {
+  Future<List<RecipeSuggestion>> generateRecipeSuggestionsWithPreferences(
+    List<String> ingredients,
+    RecipePreferences preferences,
+  ) async {
+    print('Generating recipes with preferences for ingredients: $ingredients');
+    print('Preferences: ${preferences.servings} servings, ${preferences.mealType.value}, ${preferences.timeConstraint.value}');
+    print('Using Google Gemini API (${ApiConfig.geminiModel}) - FREE!');
+    
+    return await _generateGeminiRecipes(ingredients, preferences);
+  }
+
+  Future<List<RecipeSuggestion>> _generateGeminiRecipes(
+    List<String> ingredients,
+    RecipePreferences? preferences,
+  ) async {
     try {
       print('Calling Google Gemini API...');
       print('   Model: ${ApiConfig.geminiModel}');
       print('   Ingredients: ${ingredients.join(", ")}');
       
-      final prompt = '''${_getSystemPrompt()}
+      final prompt = '''${_getSystemPrompt(preferences)}
 
-User Request: ${_getUserPrompt(ingredients)}''';
+User Request: ${_getUserPrompt(ingredients, preferences)}''';
       
       // Use the geminiBaseUrl which already includes the full endpoint
       final response = await _client.post(
@@ -79,9 +94,20 @@ User Request: ${_getUserPrompt(ingredients)}''';
     }
   }
 
-  String _getSystemPrompt() {
+  String _getSystemPrompt(RecipePreferences? preferences) {
+    String servingsGuidance = '';
+    String timeGuidance = '';
+    
+    if (preferences != null) {
+      servingsGuidance = '\n\nIMPORTANT - SERVING SIZE: All recipes MUST be scaled to exactly ${preferences.servings} serving${preferences.servings > 1 ? 's' : ''}. Adjust ingredient quantities accordingly to match this serving size. The nutritionalInfo.servings field MUST be ${preferences.servings}.';
+      
+      if (preferences.timeConstraint.maxMinutes != null) {
+        timeGuidance = '\n\nIMPORTANT - TIME CONSTRAINT: Total cooking time (prep + cook) MUST NOT EXCEED ${preferences.timeConstraint.maxMinutes} minutes. Choose quick-cooking methods and ingredients that fit within this time limit.';
+      }
+    }
+    
     return '''You are an expert Nigerian chef specializing in South-Western Nigerian (Yoruba) cuisine. 
-Given a list of ingredients, suggest 3 authentic and delicious recipes from South-Western Nigeria.
+Given a list of ingredients, suggest 3 authentic and delicious recipes from South-Western Nigeria.$servingsGuidance$timeGuidance
 
 IMPORTANT: Focus on traditional Yoruba dishes and cooking methods. Use Nigerian ingredients, seasonings, and cooking techniques.
 Include dishes like: Amala, Ewedu, Gbegiri, Ata dindin, Ofada rice, Asaro, Efo riro, Obe ata, Moin moin, Akara, Dodo, etc.
@@ -96,7 +122,7 @@ Common South-Western Nigerian ingredients to consider:
 - Traditional seasonings: iru (locust beans), dried fish, crayfish
 
 For each recipe, provide:
-1. A title (use Yoruba names where appropriate, with English translation)
+1. A title (use Yoruba names where appropriate)
 2. A brief description highlighting Nigerian cooking style
 3. List of ingredients (use Nigerian ingredient names and measurements)
 4. DETAILED step-by-step cooking instructions (at least 6-10 steps)
@@ -104,12 +130,12 @@ For each recipe, provide:
 6. Cooking time in minutes
 7. Difficulty level (Easy, Medium, or Hard)
 8. Rating (between 4.0 and 5.0)
-9. Nutritional information per serving (realistic estimates based on typical Nigerian portions)
+9. Nutritional classes/food groups present in the recipe (e.g., Proteins, Carbohydrates, Vitamins, Fats, Fiber, Minerals)
 
-Format your response as a JSON array with this structure:
+Format your response as a JSON array with this EXACT structure:
 [
   {
-    "title": "Recipe Name (Yoruba Name)",
+    "title": "Local Recipe Name",
     "description": "Brief description with Nigerian context",
     "ingredients": ["ingredient 1 with Nigerian measurements", "ingredient 2", ...],
     "instructions": [
@@ -124,30 +150,45 @@ Format your response as a JSON array with this structure:
     "rating": 4.5,
     "nutritionalInfo": {
       "servings": 4,
-      "calories": 450,
-      "protein": 25,
-      "carbs": 60,
-      "fat": 15,
-      "fiber": 8
+      "proteins": true,
+      "carbohydrates": true,
+      "vitamins": true,
+      "fats": true,
+      "fiber": true,
+      "minerals": true
     }
   }
 ]
 
-IMPORTANT for servings: Provide realistic portion estimates based on:
-- Typical Nigerian family meal sizes (usually 4-8 servings)
-- Single-person snacks (1-2 servings)
-- Party/celebration dishes (6-12 servings)
-Be conservative and realistic - it's better to say "Serves 4-6" by using the lower number (4).
+CRITICAL: nutritionalInfo MUST include servings (number) and food group indicators (proteins, carbohydrates, vitamins, fats, fiber, minerals) as boolean values indicating whether the recipe contains significant amounts of each food group.
 
 Be authentic to South-Western Nigerian cuisine and cooking traditions!''';
   }
 
-  String _getUserPrompt(List<String> ingredients) {
-    return '''Create 3 authentic South-Western Nigerian (Yoruba) recipe suggestions using these ingredients: ${ingredients.join(", ")}.
+  String _getUserPrompt(List<String> ingredients, RecipePreferences? preferences) {
+    String basePrompt = '''Create 3 authentic South-Western Nigerian (Yoruba) recipe suggestions using these ingredients: ${ingredients.join(", ")}.
 
 Include traditional Nigerian ingredients like palm oil, crayfish, locust beans (iru), scotch bonnet peppers, and other common Nigerian pantry items.
 Focus on popular Yoruba dishes and traditional cooking methods.
 Use Nigerian measurements and ingredient names where applicable.''';
+
+    if (preferences != null) {
+      String mealTypeGuidance = '';
+      if (preferences.mealType != MealType.any) {
+        mealTypeGuidance = '\n\nMEAL TYPE: Focus on ${preferences.mealType.value} recipes. Choose dishes traditionally served for ${preferences.mealType.value.toLowerCase()}.';
+      }
+      
+      String servingsReminder = '\n\nREMINDER: Scale ALL ingredients to exactly ${preferences.servings} serving${preferences.servings > 1 ? 's' : ''}.';
+      
+      String timeReminder = '';
+      if (preferences.timeConstraint.maxMinutes != null) {
+        timeReminder = '\n\nTIME LIMIT: Ensure total time (prep + cook) is under ${preferences.timeConstraint.maxMinutes} minutes.';
+      }
+      
+      basePrompt += mealTypeGuidance + servingsReminder + timeReminder;
+    }
+    
+    return basePrompt;
   }
 
   List<RecipeSuggestion> _parseAIResponseFromText(String text, List<String> ingredients) {
@@ -175,14 +216,7 @@ Use Nigerian measurements and ingredient names where applicable.''';
           NutritionalInfo? nutritionalInfo;
           if (json['nutritionalInfo'] != null) {
             final nutritionJson = json['nutritionalInfo'] as Map<String, dynamic>;
-            nutritionalInfo = NutritionalInfo(
-              servings: nutritionJson['servings'] as int,
-              calories: nutritionJson['calories'] as int,
-              protein: nutritionJson['protein'] as int,
-              carbs: nutritionJson['carbs'] as int,
-              fat: nutritionJson['fat'] as int,
-              fiber: nutritionJson['fiber'] as int,
-            );
+            nutritionalInfo = NutritionalInfo.fromJson(nutritionJson);
           }
           
           return RecipeSuggestion(
@@ -195,6 +229,7 @@ Use Nigerian measurements and ingredient names where applicable.''';
             cookTimeMinutes: json['cookTimeMinutes'] as int,
             difficulty: json['difficulty'] as String,
             rating: (json['rating'] as num).toDouble(),
+            imageUrl: json['imageUrl'] as String?,
             nutritionalInfo: nutritionalInfo,
           );
         }).toList();

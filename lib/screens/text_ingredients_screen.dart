@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/ingredient.dart';
-import '../models/history_entry.dart';
-import '../services/recipe_ai_service.dart';
-import '../services/database_service.dart';
-import '../widgets/loading_dialog.dart';
 import '../widgets/error_dialog.dart';
-import 'recipe_suggestions_screen.dart';
+import 'recipe_preferences_screen.dart';
 
 class TextIngredientsScreen extends StatefulWidget {
   const TextIngredientsScreen({super.key});
@@ -17,8 +13,6 @@ class TextIngredientsScreen extends StatefulWidget {
 class _TextIngredientsScreenState extends State<TextIngredientsScreen> {
   final List<String> _ingredients = [];
   final TextEditingController _textController = TextEditingController();
-  final RecipeAIService _recipeService = RecipeAIService();
-  final DatabaseService _databaseService = DatabaseService();
   
   // Common Nigerian ingredients for suggestions
   final List<String> _commonIngredients = [
@@ -372,95 +366,28 @@ class _TextIngredientsScreenState extends State<TextIngredientsScreen> {
       return;
     }
 
-    // Show loading dialog
+    // Convert ingredient names to Ingredient objects
+    final ingredientObjects = _ingredients.map((name) {
+      return Ingredient(
+        id: DateTime.now().millisecondsSinceEpoch.toString() + name.hashCode.toString(),
+        name: name,
+        confidence: 1.0, // Manual ingredients have 100% confidence
+        imagePath: null,
+        category: 'Manual',
+        isManual: true,
+        detectionMethod: 'manual',
+      );
+    }).toList();
+
+    // Navigate to recipe preferences screen
     if (mounted) {
-      LoadingDialog.show(
-        context,
-        message: 'Generating personalized recipes...\n\nOur AI chef is creating delicious Nigerian recipes for you. This may take 10-15 seconds.',
-      );
-    }
-
-    try {
-      // Generate recipe suggestions
-      final recipes = await _recipeService.generateRecipeSuggestions(_ingredients);
-      
-      // Hide loading dialog
-      if (mounted) {
-        LoadingDialog.hide(context);
-      }
-      
-      // Convert ingredient names to Ingredient objects
-      final ingredientObjects = _ingredients.map((name) {
-        return Ingredient(
-          id: DateTime.now().millisecondsSinceEpoch.toString() + name.hashCode.toString(),
-          name: name,
-          confidence: 1.0, // Manual ingredients have 100% confidence
-          imagePath: null,
-          category: 'Manual',
-          isManual: true,
-        );
-      }).toList();
-      
-      // Save to history
-      final historyEntry = HistoryEntry(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        timestamp: DateTime.now(),
-        ingredients: ingredientObjects,
-        suggestedRecipes: recipes,
-        topRecipe: recipes.isNotEmpty ? recipes.first.title : null,
-      );
-      
-      await _databaseService.saveHistoryEntry(historyEntry);
-
-      // Navigate to recipe suggestions
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => RecipeSuggestionsScreen(
-              ingredients: ingredientObjects,
-              recipes: recipes,
-            ),
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => RecipePreferencesScreen(
+            ingredients: ingredientObjects,
           ),
-        );
-      }
-    } catch (e) {
-      // Hide loading dialog
-      if (mounted) {
-        LoadingDialog.hide(context);
-      }
-      
-      // Show error dialog with retry option
-      if (mounted) {
-        final shouldRetry = await ErrorDialog.show(
-          context,
-          title: 'Recipe Generation Failed',
-          message: _getRecipeErrorMessage(e),
-          showRetry: true,
-          technicalDetails: e.toString(),
-        );
-        
-        if (shouldRetry) {
-          // Retry recipe generation
-          await _generateRecipes();
-        }
-      }
-    }
-  }
-
-  /// Get user-friendly error message for recipe generation
-  String _getRecipeErrorMessage(dynamic error) {
-    final errorStr = error.toString();
-    
-    if (errorStr.contains('No internet connection') || errorStr.contains('SocketException')) {
-      return 'No internet connection detected.\n\nPlease check your network and try again.';
-    } else if (errorStr.contains('timed out') || errorStr.contains('timeout')) {
-      return 'The AI is taking longer than expected.\n\nThis might be due to a slow connection or high server load. Please try again.';
-    } else if (errorStr.contains('Rate Limit') || errorStr.contains('429')) {
-      return 'Too many requests.\n\nPlease wait a moment before trying again.';
-    } else if (errorStr.contains('service is temporarily unavailable') || errorStr.contains('500')) {
-      return 'Our AI service is temporarily unavailable.\n\nPlease try again in a few moments.';
-    } else {
-      return 'Failed to generate recipes.\n\nPlease check your internet connection and try again.';
+        ),
+      );
     }
   }
 }

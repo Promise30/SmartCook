@@ -12,6 +12,7 @@ class Ingredient {
   final String? quantityEstimate;
   final String category;
   final bool isManual;
+  final String detectionMethod; // 'ml', 'ocr', or 'manual'
 
   const Ingredient({
     required this.id,
@@ -22,6 +23,7 @@ class Ingredient {
     this.quantityEstimate,
     required this.category,
     this.isManual = false,
+    this.detectionMethod = 'ml',
   });
 
   factory Ingredient.fromJson(Map<String, dynamic> json) => _$IngredientFromJson(json);
@@ -37,6 +39,7 @@ class Ingredient {
     String? quantityEstimate,
     String? category,
     bool? isManual,
+    String? detectionMethod,
   }) {
     return Ingredient(
       id: id ?? this.id,
@@ -47,6 +50,7 @@ class Ingredient {
       quantityEstimate: quantityEstimate ?? this.quantityEstimate,
       category: category ?? this.category,
       isManual: isManual ?? this.isManual,
+      detectionMethod: detectionMethod ?? this.detectionMethod,
     );
   }
 }
