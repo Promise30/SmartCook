@@ -62,6 +62,11 @@ The `.gitignore` is configured to prevent accidental key exposure.
 
 ## Testing
 
+**A. Mobile APK Testing**
+The APK for this project is available for download and testing here: [Google Drive](https://drive.google.com/drive/folders/1evg=HkWHv3bUJUCqV?usp=drive_link)
+
+
+**B. Local Project Testing**
 ```bash
 # Run unit tests
 flutter test
