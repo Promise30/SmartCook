@@ -42,6 +42,8 @@ A Flutter mobile app that uses **Azure ML API** and **AI Language model** to rec
    - **Gemini (FREE)**: Get key at https://aistudio.google.com/apikey
   
 4. **Run the app**
+To run the app in debug mode on your mobile device, connect the device via USB. Make sure to enable Developer Options in your device settings and turn on USB debugging. This will allow the app to be installed and run on your device.
+
    ```bash
    # List available devices
    flutter devices
@@ -54,9 +56,9 @@ A Flutter mobile app that uses **Azure ML API** and **AI Language model** to rec
 
 **IMPORTANT**: Never commit files with real API keys!
 
-- ✅ `api_config.dart.example` - Template with placeholders (safe to commit)
-- ❌ `api_config.dart` - Your actual keys (gitignored, never commit)
-- ❌ `test_gemini_api.dart` - Test file with keys (gitignored)
+-  `api_config.dart.example` - Template with placeholders (safe to commit)
+-  `api_config.dart` - Your actual keys (gitignored, never commit)
+-  `test_gemini_api.dart` - Test file with keys (gitignored)
 
 The `.gitignore` is configured to prevent accidental key exposure.
 

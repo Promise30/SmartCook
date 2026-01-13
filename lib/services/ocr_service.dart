@@ -187,7 +187,7 @@ class OCRService {
   /// Check if text contains a word (not just substring)
   bool _containsWord(String text, String word) {
     final pattern = RegExp(r'\b' + word + r'\b', caseSensitive: false);
-    return pattern.hasMatch(text);
+    return pattern.hasMatch(text); 
   }
 
   /// Get confidence level for OCR detection

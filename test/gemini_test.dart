@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:ml_app/config/api_config.dart';
 
 void main() async {
-  print('Testing Gemini 2.5 Pro Configuration...\n');
+  print('Testing Gemini 3.5 Pro Configuration...\n');
   
   // Test configuration
   print('Current Configuration:');

@@ -13,9 +13,6 @@ class IngredientsAPIService {
   // Azure Production API
   static const String baseUrl = 'https://food-ingredients-recogition-api.azurewebsites.net';
   
-  // Uncomment below for local testing:
-  // static const String baseUrl = 'http://192.168.1.197:5000';
-  
   final http.Client _client = http.Client();
 
   /// Predict multiple ingredients from images
@@ -182,7 +179,7 @@ class IngredientsAPIService {
 
   /// Get list of supported ingredients
   /// 
-  /// Returns all 15 Nigerian ingredients the model can recognize
+  /// Returns all Nigerian ingredients the model can recognize
   Future<List<String>> getIngredients() async {
     try {
       final response = await _client.get(
@@ -198,7 +195,6 @@ class IngredientsAPIService {
       }
       return [];
     } catch (e) {
-      print('Failed to get ingredients: $e');
       return [];
     }
   }
