@@ -1,6 +1,6 @@
 # Nigerian Ingredients Recognition & Recipe Recommendation System
 
-A Flutter mobile app that uses **Azure ML API** and **AI Language models** to recognize Nigerian food ingredients from photos and suggest South-Western Nigerian recipes.
+A Flutter mobile app that uses **Azure ML API** and **AI Language model** to recognize Nigerian food ingredients from photos and suggest South-Western Nigerian recipes.
 
 ## Features
 
@@ -17,7 +17,7 @@ A Flutter mobile app that uses **Azure ML API** and **AI Language models** to re
 - Flutter SDK 3.35.2 or higher
 - Android Studio / Xcode (for mobile development)
 - Android device or emulator (API 24+)
-- Google Gemini API key (FREE) or OpenAI API key (Paid)
+- Google Gemini API key (FREE) 
 
 ### Installation
 
@@ -40,7 +40,7 @@ A Flutter mobile app that uses **Azure ML API** and **AI Language models** to re
    
    Edit `lib/config/api_config.dart` and add your API key:
    - **Gemini (FREE)**: Get key at https://aistudio.google.com/apikey
-
+  
 4. **Run the app**
 To run the app in debug mode on your mobile device, connect the device via USB. Make sure to enable Developer Options in your device settings and turn on USB debugging. This will allow the app to be installed and run on your device.
 
@@ -64,6 +64,11 @@ The `.gitignore` is configured to prevent accidental key exposure.
 
 ## Testing
 
+**A. Mobile APK Testing**
+The APK for this project is available for download and testing here: [Google Drive](https://drive.google.com/drive/folders/1evg=HkWHv3bUJUCqV?usp=drive_link)
+
+
+**B. Local Project Testing**
 ```bash
 # Run unit tests
 flutter test
