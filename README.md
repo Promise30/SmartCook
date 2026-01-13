@@ -5,7 +5,7 @@ A Flutter mobile app that uses **Azure ML API** and **AI Language models** to re
 ## Features
 
 - **Ingredient Recognition**: Capture or upload photos of ingredients
-- **AI-Powered Detection**: Azure TFLite model recognizes 15+ Nigerian ingredients
+- **AI-Powered Detection**: Azure TFLite model recognizes 30+ Nigerian ingredients
 - **Smart Recipe Suggestions**: Google Gemini AI generates relevant south-western Nigerian recipes based on detected ingredients
 - **Recipe Database**: Browse and bookmark favorite recipes
 - **History Tracking**: View past ingredient scans and recipe suggestions
@@ -40,7 +40,6 @@ A Flutter mobile app that uses **Azure ML API** and **AI Language models** to re
    
    Edit `lib/config/api_config.dart` and add your API key:
    - **Gemini (FREE)**: Get key at https://aistudio.google.com/apikey
-   - **OpenAI (Paid)**: Get key at https://platform.openai.com/api-keys
 
 4. **Run the app**
    ```bash
@@ -55,9 +54,9 @@ A Flutter mobile app that uses **Azure ML API** and **AI Language models** to re
 
 **IMPORTANT**: Never commit files with real API keys!
 
-- ✅ `api_config.dart.example` - Template with placeholders (safe to commit)
-- ❌ `api_config.dart` - Your actual keys (gitignored, never commit)
-- ❌ `test_gemini_api.dart` - Test file with keys (gitignored)
+-  `api_config.dart.example` - Template with placeholders (safe to commit)
+-  `api_config.dart` - Your actual keys (gitignored, never commit)
+-  `test_gemini_api.dart` - Test file with keys (gitignored)
 
 The `.gitignore` is configured to prevent accidental key exposure.
 

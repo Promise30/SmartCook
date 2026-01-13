@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>SmartCook needs camera access to scan ingredient labels and food items</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>SmartCook needs photo library access to select images for ingredient recognition</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>SmartCook needs permission to save images to your photo library</string>
 </dict>
 </plist>

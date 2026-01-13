@@ -19,8 +19,8 @@ class ApiConfig {
   static const String geminiApiKey = 'YOUR_GEMINI_API_KEY_HERE';
   
   // API Endpoint
-  static const String geminiBaseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
-  static const String geminiModel = 'gemini-2.5-flash';  // Fast & Free!
+  static const String geminiBaseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent';
+  static const String geminiModel = 'gemini-3.5-flash';  // Fast & Free!
   
   // API Settings
   static const int maxTokens = 2000;
