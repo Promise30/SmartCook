@@ -42,6 +42,8 @@ A Flutter mobile app that uses **Azure ML API** and **AI Language models** to re
    - **Gemini (FREE)**: Get key at https://aistudio.google.com/apikey
 
 4. **Run the app**
+To run the app in debug mode on your mobile device, connect the device via USB. Make sure to enable Developer Options in your device settings and turn on USB debugging. This will allow the app to be installed and run on your device.
+
    ```bash
    # List available devices
    flutter devices
